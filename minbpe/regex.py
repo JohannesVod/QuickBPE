@@ -10,8 +10,8 @@ Unlike BasicTokenizer:
 """
 
 import regex as re
+from .fastfuncs.funcs import trainFast
 from .base import Tokenizer, get_stats, merge
-
 
 # the main GPT text split patterns, see
 # https://github.com/openai/tiktoken/blob/main/tiktoken_ext/openai_public.py
@@ -37,28 +37,47 @@ class RegexTokenizer(Tokenizer):
         assert vocab_size >= 256
         num_merges = vocab_size - 256
 
+        print("splitting text chunk...")
         # split the text up into text chunks
         text_chunks = re.findall(self.compiled_pattern, text)
 
+        print("text preprocessing")
         # input text preprocessing
         ids = [list(ch.encode("utf-8")) for ch in text_chunks]
+        bytes_total = 0
+        for el in ids:
+            bytes_total += len(el)
+        
+        print("loading into array...")
+        id_list = [0 for _ in range(len(ids) + bytes_total)]
+        i = 0
+        for ch in ids:
+            for el in ch:
+                #print(i)
+                id_list[i] = el
+                i += 1
+            i += 1
 
-        # iteratively merge the most common pairs to create new tokens
+        print("merging...")
+        self.merges, self.vocab =  trainFast(id_list, vocab_size)
+        
+    def trainslow(self, text, vocab_size, verbose=False):
+        assert vocab_size >= 256
+        num_merges = vocab_size - 256
+
+        # split the text up into text chunks
+        text_chunks = re.findall(self.compiled_pattern, text)
+        ids = [list(ch.encode("utf-8")) for ch in text_chunks]
+
         merges = {} # (int, int) -> int
         vocab = {idx: bytes([idx]) for idx in range(256)} # idx -> bytes
         for i in range(num_merges):
-            # count the number of times every consecutive pair appears
             stats = {}
             for chunk_ids in ids:
-                # passing in stats will update it in place, adding up counts
                 get_stats(chunk_ids, stats)
-            # find the pair with the highest count
             pair = max(stats, key=stats.get)
-            # mint a new token: assign it the next available id
             idx = 256 + i
-            # replace all occurrences of pair in ids with idx
             ids = [merge(chunk_ids, pair, idx) for chunk_ids in ids]
-            # save the merge
             merges[pair] = idx
             vocab[idx] = vocab[pair[0]] + vocab[pair[1]]
             # prints
