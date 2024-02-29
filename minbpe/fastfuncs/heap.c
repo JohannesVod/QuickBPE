@@ -2,8 +2,6 @@
 #include <stdlib.h>
  
 // Declare a heap structure
-
-
 struct Element{
     int data;
 };
@@ -24,14 +22,14 @@ struct Heap {
 
 typedef struct Heap heap;
 // forward declarations
-heap* createHeap(int capacity, heapNode* nums);
+heap* createHeap(int capacity, int size, heapNode* nums);
 void bubbleUp(heap* h, int index);
 void heapify(heap* h, int index);
-heapNode* extractMin(heap* h);
+heapNode* extractMax(heap* h);
 void insert(heap* h, heapNode data);
  
 // Define a createHeap function
-heap* createHeap(int capacity, heapNode* nums)
+heap* createHeap(int capacity, int size, heapNode* nums)
 {
     // Allocating memory to heap h
     heap* h = (heap*)malloc(sizeof(heap));
@@ -54,11 +52,11 @@ heap* createHeap(int capacity, heapNode* nums)
         return NULL;
     }
     int i;
-    for (i = 0; i < capacity; i++) {
+    for (i = 0; i < size; i++) {
         h->arr[i] = nums[i];
     }
  
-    h->size = i;
+    h->size = size;
     i = (h->size - 2) / 2;
     while (i >= 0) {
         heapify(h, i);
@@ -68,15 +66,15 @@ heap* createHeap(int capacity, heapNode* nums)
 }
 
 void swap(heap *h, int key1, int key2){
-    int temp = h->arr[key1].key;
-    h->arr[key1].key = h->arr[key2].key;
-    h->arr[key2].key = temp;
+    heapNode temp = h->arr[key1];
+    h->arr[key1] = h->arr[key2];
+    h->arr[key2] = temp;
 }
 
 void bubbleUp(heap* h, int index)
 {
     int parent = (index - 1) / 2;
-    if (h->arr[parent].key > h->arr[index].key) {
+    if (h->arr[parent].key < h->arr[index].key) {
         // Swapping when child is smaller
         // than parent element
         swap(h, parent, index);
@@ -112,7 +110,7 @@ void heapify(heap* h, int index)
     }
 }
  
-heapNode* extractMin(heap* h)
+heapNode* extractMax(heap* h)
 {
     // Checking if the heap is empty or not
     if (h->size == 0) {
@@ -154,7 +152,7 @@ void insert(heap* h, heapNode data)
         h->size++;
     }
 }
- 
+
 void printHeap(heap* h)
 {
     for (int i = 0; i < h->size; i++) {
@@ -163,43 +161,64 @@ void printHeap(heap* h)
     printf("\n");
 }
 
-int main()
-{
-    int arr[100];
-    for (int i = 0; i < 100; i++) {
-        arr[i] = i + 1; // Filling the array with numbers from 1 to 100 initially
-    }
-    srand(time(NULL)); // Seed for random number generation
-    for (int i = 99; i > 0; i--) {
+void shuffleArray(int arr[], int size) {
+    for (int i = size - 1; i > 0; i--) {
         int j = rand() % (i + 1); // Generate a random index from 0 to i
         // Swap arr[i] and arr[j]
         int temp = arr[i];
         arr[i] = arr[j];
         arr[j] = temp;
     }
+}
 
-    // Creating heap nodes
-    heapNode nodes[100];
-    for (int i = 0; i < 100; i++) {
+void freeHeap(heap *hp){
+    free(hp->arr);
+    free(hp);
+}
+
+int main() {
+    int arr_size = 1000000;
+    int *arr = (int*)malloc(arr_size * sizeof(int));
+    // Check if memory allocation is successful
+    if (arr == NULL) {
+        printf("Memory allocation failed.\n");
+        return 1; // Return an error code indicating failure
+    }
+
+    for (int i = 0; i < arr_size; i++) {
+        arr[i] = i + 1;
+    }
+    
+    // Shuffle the array
+    shuffleArray(arr, arr_size);
+    heapNode *nodes = (heapNode*)malloc(arr_size * sizeof(heapNode));
+    // Check if memory allocation is successful
+    if (nodes == NULL) {
+        printf("Memory allocation failed.\n");
+        free(arr); // Free the previously allocated memory
+        return 1; // Return an error code indicating failure
+    }
+
+    for (int i = 0; i < arr_size; i++) {
         element* data = (element*)malloc(sizeof(element));
         data->data = arr[i];
         nodes[i].key = arr[i];
         nodes[i].el = data;
     }
 
-    // Creating the heap
-    heap* hp = createHeap(200, nodes);
+    heap* hp = createHeap(2 * arr_size, arr_size, nodes);
+    
+    for (int i = 0; i < arr_size; i++) {
+        heapNode* max_el = extractMax(hp);
+        if (max_el->key != arr_size - i) {
+            printf("ERROR!!! Expected: %d, Actual: %d\n", arr_size - i, max_el->key);
+        }
+    }
+    printf("%d\n", hp->size);
+    // Free dynamically allocated memory
+    free(arr);
 
-    // Printing the heap before extraction
-    printf("Heap before extraction:\n");
-    printHeap(hp);
-
-    // Extracting the minimum element from the heap
-    extractMin(hp);
-
-    // Printing the heap after extraction
-    printf("\nHeap after extraction:\n");
-    printHeap(hp);
-
+    freeHeap(hp);
+    free(nodes);
     return 0;
 }
