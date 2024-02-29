@@ -33,9 +33,8 @@ class RegexTokenizer(Tokenizer):
         self.special_tokens = {}
         self.inverse_special_tokens = {}
 
-    def train(self, text, vocab_size, verbose=False):
+    def trainFaster(self, text, vocab_size, verbose=False):
         assert vocab_size >= 256
-        num_merges = vocab_size - 256
 
         print("splitting text chunk...")
         # split the text up into text chunks
@@ -57,11 +56,24 @@ class RegexTokenizer(Tokenizer):
                 id_list[i] = el
                 i += 1
             i += 1
-
+        print(len(id_list))
         print("merging...")
-        self.merges, self.vocab =  trainFast(id_list, vocab_size)
-        
-    def trainslow(self, text, vocab_size, verbose=False):
+        self.merges, self.vocab =  trainFast(id_list[:-2] + [10, 0], vocab_size)
+        return self.merges, self.vocab
+
+    def train(self, text, vocab_size, verbose=False):
+        def getMax(stats, curr_size):
+            max_pair = None
+            max_count = -1
+            for i in range(curr_size):
+                for j in range(curr_size):
+                    pair = (i, j)
+                    this_count = stats.get(pair, -1)
+                    if this_count > max_count:
+                        max_count = this_count
+                        max_pair = pair
+            return max_pair
+
         assert vocab_size >= 256
         num_merges = vocab_size - 256
 
@@ -75,7 +87,7 @@ class RegexTokenizer(Tokenizer):
             stats = {}
             for chunk_ids in ids:
                 get_stats(chunk_ids, stats)
-            pair = max(stats, key=stats.get)
+            pair = getMax(stats, vocab_size)
             idx = 256 + i
             ids = [merge(chunk_ids, pair, idx) for chunk_ids in ids]
             merges[pair] = idx
@@ -87,6 +99,7 @@ class RegexTokenizer(Tokenizer):
         # save class variables
         self.merges = merges # used in encode()
         self.vocab = vocab   # used in decode()
+        return self.merges, self.vocab
 
     def register_special_tokens(self, special_tokens):
         # special_tokens is a dictionary of str -> int

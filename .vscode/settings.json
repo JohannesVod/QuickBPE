@@ -55,5 +55,18 @@
   "C_Cpp_Runner.useLeakSanitizer": false,
   "C_Cpp_Runner.showCompilationTime": false,
   "C_Cpp_Runner.useLinkTimeOptimization": false,
-  "C_Cpp_Runner.msvcSecureNoWarnings": false
+  "C_Cpp_Runner.msvcSecureNoWarnings": false,
+  "files.associations": {
+    "array": "c",
+    "ranges": "c",
+    "span": "c",
+    "vector": "c",
+    "xstring": "c",
+    "xutility": "c",
+    "algorithm": "c",
+    "limits": "c",
+    "utility": "c",
+    "iterator": "c",
+    "xmemory": "c"
+  }
 }
