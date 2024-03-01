@@ -1,18 +1,21 @@
 {
-  "configurations": [
-    {
-      "name": "windows-gcc-x64",
-      "includePath": [
-        "${workspaceFolder}/**"
-      ],
-      "compilerPath": "C:/Program Files/Haskell Platform/8.6.5/mingw/bin/gcc.exe",
-      "cStandard": "${default}",
-      "cppStandard": "${default}",
-      "intelliSenseMode": "windows-gcc-x64",
-      "compilerArgs": [
-        ""
-      ]
-    }
-  ],
-  "version": 4
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                "${default}"
+            ],
+            "defines": [
+                "_DEBUG",
+                "UNICODE",
+                "_UNICODE"
+            ],
+            "windowsSdkVersion": "10.0.22621.0",
+            "compilerPath": "C:/mingw64/bin/g++.exe",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "windows-gcc-x64"
+        }
+    ],
+    "version": 4
 }

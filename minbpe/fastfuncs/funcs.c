@@ -161,7 +161,6 @@ int main() {
         printf("\n");
         free(vocab[i].token_list);
     }
-
     free(vocab);
     return 0;
 }
