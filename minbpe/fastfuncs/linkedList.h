@@ -1,22 +1,18 @@
 #ifndef DOUBLY_LINKED_LIST_H
 #define DOUBLY_LINKED_LIST_H
 
-struct ListNode {
-    int data;
-    struct ListNode* prev;
-    struct ListNode* next;
-};
-
 struct LinkedList {
-    struct ListNode* head;
+    int *data;
+    int capacity;
     int size;
 };
 
-struct ListNode* createNode(int data);
-struct LinkedList* createLinkedList();
-struct LinkedList* arrayToLinkedList(int *arr, int size);
-void insertAtBeginning(struct LinkedList* list, int data);
-void removeNode(struct LinkedList* list, struct ListNode* node);
-void freeLinkedList(struct LinkedList* list);
-void displayList(struct LinkedList* list);
+struct LinkedList createLinkedList(int *arr, int arr_size);
+void deleteElement(struct LinkedList *list, int index);
+void updateElement(struct LinkedList *list, int index, int value);
+int getNextIndex(struct LinkedList *list, int index);
+int getPrevIndex(struct LinkedList *list, int index);
+void displayList(struct LinkedList list, int raw);
+int getPrevElement(struct LinkedList *list, int index);
+int getNextElement(struct LinkedList *list, int index);
 #endif

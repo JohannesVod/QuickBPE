@@ -1,95 +1,92 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "linkedList.h"
-
-// Function to create a new node
-struct ListNode* createNode(int data) {
-    struct ListNode* newNode = (struct ListNode*)malloc(sizeof(struct ListNode));
-    if (newNode == NULL) {
-        fprintf(stderr, "Memory allocation failed\n");
-        exit(EXIT_FAILURE);
-    }
-    newNode->data = data;
-    newNode->prev = NULL;
-    newNode->next = NULL;
-    return newNode;
-}
+#include <time.h>
 
 // Function to initialize a new linked list
-struct LinkedList* createLinkedList() {
-    struct LinkedList* newList = (struct LinkedList*)malloc(sizeof(struct LinkedList));
-    if (newList == NULL) {
-        fprintf(stderr, "Memory allocation failed\n");
-        exit(EXIT_FAILURE);
-    }
-    newList->head = NULL;
-    newList->size = 0;
+struct LinkedList createLinkedList(int *arr, int arr_size) {
+    struct LinkedList newList = {arr, arr_size, arr_size};
     return newList;
 }
 
-// Function to insert a new node at the beginning of the list
-void insertAtBeginning(struct LinkedList* list, int data) {
-    struct ListNode* newNode = createNode(data);
-    if (list->head == NULL) {
-        list->head = newNode;
-    } else {
-        newNode->next = list->head;
-        list->head->prev = newNode;
-        list->head = newNode;
-    }
-    list->size += 1;
-}
-
 // Function to remove a node from the list
-void removeNode(struct LinkedList* list, struct ListNode* node) {
-    if (list->head == NULL || node == NULL)
-        return;
-
-    if (node->prev != NULL)
-        node->prev->next = node->next;
-    else
-        list->head = node->next;
-
-    if (node->next != NULL)
-        node->next->prev = node->prev;
-
-    list->size -= 1;
-    free(node);
+void deleteElement(struct LinkedList *list, int index) {
+    list->data[index] = -2;
+    list->size--;
 }
 
-// Function to free the memory allocated for the linked list
-void freeLinkedList(struct LinkedList* list) {
-    struct ListNode* current = list->head;
-    struct ListNode* next;
-    while (current != NULL) {
-        next = current->next;
-        free(current);
-        current = next;
+void updateElement(struct LinkedList *list, int index, int value) {
+    list->data[index] = value;
+}
+
+int getNextIndex(struct LinkedList *list, int index){
+    int curr_index = index+1;
+    while (list->data[curr_index] == -2 && curr_index < list->capacity){
+        curr_index++;
     }
-    free(list);
+    if (curr_index >= list->capacity){
+        return -1;
+    }
+    return curr_index;
+}
+
+int getPrevIndex(struct LinkedList *list, int index){
+    int curr_index = index-1;
+    while (list->data[curr_index] == -2 && curr_index >= 0){
+        curr_index--;
+    }
+    if (curr_index < 0){
+        return -1;
+    }
+    return curr_index;
+}
+
+int getNextElement(struct LinkedList *list, int index){
+    int next_index = getNextIndex(list, index);
+    if (next_index != -1){
+        return list->data[next_index];
+    }
+    return -1;
+}
+
+int getPrevElement(struct LinkedList *list, int index){
+    int prev_index = getPrevIndex(list, index);
+    if (prev_index != -1){
+        return list->data[prev_index];
+    }
+    return -1;
 }
 
 // Function to display the doubly linked list
-void displayList(struct LinkedList* list) {
-    struct ListNode* temp = list->head;
-    while (temp != NULL) {
-        printf("%d ", temp->data);
-        temp = temp->next;
+void displayList(struct LinkedList list, int raw) {
+    int curr = getNextIndex(&list, -1);
+    while (curr != -1){
+        printf("%d -- ", list.data[curr]);
+        if (raw){
+            curr++;
+            if (curr >= list.size){
+                curr = -1;
+            }
+        }
+        else{
+            curr = getNextIndex(&list, curr);
+        }
     }
     printf("\n");
 }
 
-// Function to create a linked list from an array
-struct LinkedList* arrayToLinkedList(int *arr, int size) {
-    struct LinkedList* list = createLinkedList();
-    for (int i = size-1; i >= 0; i--) {
-        insertAtBeginning(list, arr[i]);
+void shuffleArray(int arr[], int size) {
+    for (int i = size - 1; i > 0; i--) {
+        int j = rand() % (i + 1); // Generate a random index from 0 to i
+        // Swap arr[i] and arr[j]
+        int temp = arr[i];
+        arr[i] = arr[j];
+        arr[j] = temp;
     }
-    return list;
 }
 
 // int main() {
-//     int arr_size = 1000000;
+//     int arr_size = 10;
 //     int *arr = (int*)malloc(arr_size * sizeof(int));
 //     // Check if memory allocation is successful
 //     if (arr == NULL) {
@@ -98,36 +95,18 @@ struct LinkedList* arrayToLinkedList(int *arr, int size) {
 //     }
 
 //     for (int i = 0; i < arr_size; i++) {
-//         arr[i] = i + 1;
+//         arr[i] = i;
 //     }
-    
+//     srand(time(NULL));
 //     // Shuffle the array
 //     shuffleArray(arr, arr_size);
-//     heapNode *nodes = (heapNode*)malloc(arr_size * sizeof(heapNode));
-//     // Check if memory allocation is successful
-//     if (nodes == NULL) {
-//         printf("Memory allocation failed.\n");
-//         free(arr); // Free the previously allocated memory
-//         return 1; // Return an error code indicating failure
-//     }
-
-//     for (int i = 0; i < arr_size; i++) {
-//         nodes[i].key = arr[i];
-//     }
-
-//     heap* hp = createHeap(2 * arr_size, arr_size, nodes);
-    
-//     for (int i = 0; i < arr_size; i++) {
-//         heapNode* max_el = extractMax(hp);
-//         if (max_el->key != arr_size - i) {
-//             printf("ERROR!!! Expected: %d, Actual: %d\n", arr_size - i, max_el->key);
-//         }
-//     }
-//     printf("%d\n", hp->size);
-//     // Free dynamically allocated memory
-//     free(arr);
-
-//     freeHeap(hp);
-//     free(nodes);
+//     LinkedList ll = createLinkedList(arr, arr_size);
+//     displayList(ll, 0);
+//     removeNode(&ll, 2);
+//     removeNode(&ll, 3);
+//     removeNode(&ll, 4);
+//     removeNode(&ll, 6);
+//     displayList(ll, 0);
+//     printf("%d", ll.size);
 //     return 0;
 // }
