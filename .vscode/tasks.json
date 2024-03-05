@@ -2,14 +2,14 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "Build",
             "type": "shell",
+            "label": "Build all CPP files",
             "command": "g++",
             "args": [
                 "-o",
                 "main",
                 "-g",
-                "main.cpp"
+                "*.cpp"
             ],
             "group": "build"
         },
@@ -20,7 +20,7 @@
             "args": [
                 "-fdiagnostics-color=always",
                 "-g",
-                "${file}",
+                "${fileDirname}\\*.cpp",
                 "-o",
                 "${fileDirname}\\${fileBasenameNoExtension}.exe"
             ],

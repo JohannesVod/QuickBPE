@@ -4,6 +4,8 @@
 #include <vector>
 #include <set>
 #include <unordered_map>
+#include <math.h>
+#include <memory>
 
 struct HeapNode {
     int key; // size of the set stored at this pair
@@ -15,18 +17,22 @@ typedef struct HeapNode heapNode;
 struct Heap {
     heapNode* arr; // pointer to the data
     std::unordered_map<int, int> pairPositions;
+    std::unordered_map<int, std::unique_ptr<std::set<int>>> pairSets;
     int size;
     int capacity;
+    int vocabSize;
 };
 
 typedef struct Heap heap;
 void heapify(heap* h, int index);
 
-heap* createHeap(int vocab_size, struct LinkedList *ids)
+// returns a heap object by value instead of by pointer
+heap createHeap(int vocab_size, struct LinkedList *ids)
 {
+    heap h; // create a heap object on the stack
     int capacity = vocab_size*vocab_size;
     // maybe replace with array, but then a lot of memory
-    std::unordered_map<int, std::set<int>*> pairSets; // stores set of positions for each pair
+    h.pairSets = std::unordered_map<int, std::unique_ptr<std::set<int>>>();
 
     struct ListNode *curr_node = ids->head;
     for (int i = 0; i < ids->size-1; i++)
@@ -35,48 +41,72 @@ heap* createHeap(int vocab_size, struct LinkedList *ids)
         int first_el = curr_node->data;
         int second_el = next_node->data;
         int index = first_el*vocab_size + second_el;
-        if (pairSets.find(index) != pairSets.end()){
-            pairSets[index] = new std::set<int>();
+        if (first_el != 0 && second_el != 0){
+            if (h.pairSets.find(index) == h.pairSets.end()){
+                h.pairSets[index] = std::make_unique<std::set<int>>();
+            }
+            h.pairSets[index]->insert(i);
         }
-        pairSets[index]->insert(index);
+        curr_node = curr_node->next;
     }
-
-    heap* h = (heap*)malloc(sizeof(heap));
-    if (h == NULL) {
-        printf("Memory error");
-        return NULL;
-    }
-
-    // stores position inside heap. Gets updated by heap. Maybe replace with array
-    h->pairPositions = std::unordered_map<int, int>();
-    h->size = 0;
-    h->capacity = capacity;
-    h->arr = (heapNode*)malloc(capacity * sizeof(heapNode));
+    
+    h.pairPositions = std::unordered_map<int, int>(); // initialize the map with the constructor
+    h.size = 0;
+    h.capacity = capacity;
+    h.vocabSize = vocab_size;
+    h.arr = (heapNode*)malloc(capacity * sizeof(heapNode));
  
-    if (h->arr == NULL) {
+    if (h.arr == NULL) {
         printf("Memory error");
-        return NULL;
+        return h; // return an empty heap
     }
     int count = 0;
-    for (const auto& pair : pairSets) {
+    for (const auto& pair : h.pairSets) {
         int key = pair.first;
         int size = pair.second->size();
-        h->arr[count].key = size;
-        h->arr[count].pair_index = key;
+        h.arr[count].key = size;
+        h.arr[count].pair_index = key;
+        h.pairPositions[key] = count;
         count++;
     }
 
-    h->size = count;
-    count = (h->size - 2) / 2;
+    h.size = count;
+    count = (h.size - 2) / 2;
     while (count >= 0) {
-        heapify(h, count);
+        heapify(&h, count); // pass the address of the heap object
         count--;
     }
-    return h;
+    return h; // return the heap object by value
+}
+
+void RemovePosition(heap *h, int index, int num_1, int num_2){
+    // removes stored pair position and updates the heap
+    int pair_index = num_1 * h->vocabSize + num_2;
+    auto& pairSet = h->pairSets[pair_index];
+    pairSet->erase(index);
+    int new_len = pairSet->size();
+    decreaseKey(h, h->pairPositions[pair_index], new_len);
+}
+
+void AddPosition(heap *h, int index, int num_1, int num_2){
+    // adds a new pair position and updates the heap
+    int pair_index = num_1 * h->vocabSize + num_2;
+    if (h->pairSets.find(pair_index) == h->pairSets.end()){
+        // if not added yet (unseen pair), add it to the heap
+        h->pairSets[pair_index] = std::make_unique<std::set<int>>();
+        insert(h, 0, pair_index);
+    }
+    auto& pairSet = h->pairSets[pair_index];
+    pairSet->insert(index);
+    int new_len = pairSet->size();
+    increaseKey(h, h->pairPositions[pair_index], new_len);
 }
 
 void swap(heap *h, int key1, int key2){
+    // save the new positions in the pair_index map:
     heapNode temp = h->arr[key1];
+    h->pairPositions[temp.pair_index] = key2;
+    h->pairPositions[h->arr[key2].pair_index] = key1;
     h->arr[key1] = h->arr[key2];
     h->arr[key2] = temp;
 }
@@ -108,7 +138,7 @@ void heapify(heap* h, int index)
         heapify(h, max);
     }
 }
- 
+
 heapNode* extractMax(heap* h)
 {
     if (h->size == 0) {
@@ -130,24 +160,38 @@ heapNode* extractMax(heap* h)
 }
  
 // Define a insert function
-void insert(heap* h, heapNode data)
+void insert(heap* h, int key, int pair_index)
 {
     if (h->size < h->capacity) {
-        h->arr[h->size] = data;
+        h->arr[h->size].key = key;
+        h->arr[h->size].pair_index = pair_index;
         bubbleUp(h, h->size);
         h->size++;
     }
 }
 
+void decreaseKey(heap* h, int position, int newKey){
+    h->arr[position].key = newKey;
+    heapify(h, position);
+}
+
+void increaseKey(heap* h, int position, int newKey){
+    h->arr[position].key = newKey;
+    bubbleUp(h, position);
+}
+
 void printHeap(heap* h)
 {
     for (int i = 0; i < h->size; i++) {
-        int m_len = h->capacity^(1/2);
+        int m_len = h->vocabSize;
         int pair_1 = (int)(h->arr[i].pair_index/m_len);
         int pair_2 = (h->arr[i].pair_index)%m_len;
         printf("%d, pair: %d, %d\n", h->arr[i].key, pair_1, pair_2);
     }
-    printf("\n");
+    printf("\nPair indices:\n");
+    for (int i = 0; i < h->size; i++) {
+        printf("position in heap: %d\n", h->pairPositions[h->arr[i].pair_index]);
+    }
 }
 
 void shuffleArray(int arr[], int size) {
@@ -162,17 +206,20 @@ void shuffleArray(int arr[], int size) {
 
 void freeHeap(heap *hp){
     free(hp->arr);
-    free(hp);
+    hp->pairPositions.clear();
+    hp->pairSets.clear();
 }
 
 int main() {
     // Create a new linked list
-    int ids[] = {3, 7, 9, 5, 3, 7, 5, 1, 8, 3};
+    int ids[] = {8, 3, 1, 5, 0, 7, 8, 3, 8, 3};
     int num_ids = sizeof(ids) / sizeof(ids[0]);
     // Create a new linked list
     struct LinkedList* list = arrayToLinkedList(ids, num_ids);
-    heap *h = createHeap(100, list);
-    printHeap(h);
+    heap h = createHeap(100, list);
+    printHeap(&h);
+    freeHeap(&h);
+    freeLinkedList(list);
     // Freeing the memory allocated for the linked list
     return 0;
 }
