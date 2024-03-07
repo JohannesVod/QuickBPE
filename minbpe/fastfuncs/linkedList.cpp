@@ -11,8 +11,10 @@ struct LinkedList createLinkedList(int *arr, int arr_size) {
 
 // Function to remove a node from the list
 void deleteElement(struct LinkedList *list, int index) {
+    if (list->data[index] != -2){
+        list->size--;
+    }
     list->data[index] = -2;
-    list->size--;
 }
 
 void updateElement(struct LinkedList *list, int index, int value) {
@@ -64,7 +66,7 @@ void displayList(struct LinkedList list, int raw) {
         printf("%d -- ", list.data[curr]);
         if (raw){
             curr++;
-            if (curr >= list.size){
+            if (curr >= list.capacity){
                 curr = -1;
             }
         }

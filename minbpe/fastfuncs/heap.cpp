@@ -34,7 +34,7 @@ void RemovePosition(heap *h, int index, int tok_1, int tok_2, int disallowed){
     // the disallowed token only ensures that the pair is only removed when
     // it is unequal to the disallowed argument. This is needed for the repeating
     // tokens problem.
-    if (tok_1 == -1 || tok_2 == -1){
+    if (tok_1 <= 0 || tok_2 <= 0){ // ignore if separated by 0 or out of bound
         return;
     }
     // removes stored pair position and updates the heap
@@ -50,7 +50,7 @@ void RemovePosition(heap *h, int index, int tok_1, int tok_2, int disallowed){
 
 void AddPosition(heap *h, int index, int tok_1, int tok_2){
     // index denotes the start position of the pair inside the linked list
-    if (tok_1 == -1 || tok_2 == -1){
+    if (tok_1 <= 0 || tok_2 <= 0){ // ignore if separated by 0 or out of bound
         return;
     }
     // adds a new pair position and updates the heap
@@ -137,6 +137,7 @@ void insert(heap* h, int key, int pair_index)
 void decreaseKey(heap* h, int position, int newKey){
     h->arr[position].key = newKey;
     heapify(h, position);
+    // TODO: delete element if newKey=0
 }
 
 void increaseKey(heap* h, int position, int newKey){
@@ -281,82 +282,87 @@ struct Token* train(int* ids, int num_ids, int num_tokens, int init_tokens) {
         int max_pair_1 = (int)(best_pair / h.vocabSize);
         int max_pair_2 = best_pair % h.vocabSize;
         printf("merging %d, %d\n", max_pair_1, max_pair_2);
-        displayList(list, 1);
+        // store new token in the final output:
+        int new_token_id = init_tokens + i;
+        vocab[new_token_id].token_id = new_token_id;
+        vocab[new_token_id].first_id = max_pair_1;
+        vocab[new_token_id].second_id = max_pair_2;
+        int pair_1_len = vocab[max_pair_1].token_list_len;
+        int pair_2_len = vocab[max_pair_2].token_list_len;
+        int new_tokens_len = pair_1_len + pair_2_len;
+        vocab[new_token_id].token_list_len = new_tokens_len;
+        vocab[new_token_id].token_list = (int*)malloc(new_tokens_len * sizeof(int));
+        // create new list of tokens by merging the old ones:
+        for (size_t i = 0; i < pair_1_len; i++)
+        {
+            vocab[new_token_id].token_list[i] = vocab[max_pair_1].token_list[i];
+        }
+        for (size_t i = 0; i < pair_2_len; i++)
+        {
+            vocab[new_token_id].token_list[i+pair_1_len] = vocab[max_pair_2].token_list[i];
+        }
         auto& pairSet = h.pairSets[best_pair];
+        int last_added_index = -1;
         for (auto& pos: *pairSet) {
+            if (pos == last_added_index){
+                continue;
+            }
             // pos = position inside the linked list
             int w1 = list.data[pos];
-            int w1_prev = getPrevElement(&list, pos);
+            int w1_prev_ind = getPrevIndex(&list, pos);
+            int w1_prev = -1;
+            if (w1_prev_ind != -1){
+                w1_prev = list.data[w1_prev_ind];
+            }
             int w2_ind = getNextIndex(&list, pos);
             int w2 = list.data[w2_ind]; // has to exist, otherwise we made a mistake
             int w2_next = getNextElement(&list, w2_ind);
-            RemovePosition(&h, pos, w1_prev, w1, best_pair);
-            RemovePosition(&h, pos, w2, w2_next, best_pair);
+            RemovePosition(&h, w1_prev_ind, w1_prev, w1, best_pair);
+            RemovePosition(&h, w2_ind, w2, w2_next, best_pair);
             int next_id = getNextIndex(&list, pos);
             // merge tokens to create new token:
             deleteElement(&list, next_id);
-            int new_token_id = init_tokens + i;
             updateElement(&list, pos, new_token_id);
-            // store new token in the final output:
-            int max_pair_1 = (int)(best_pair / h.vocabSize);
-            int max_pair_2 = best_pair % h.vocabSize;
-            vocab[new_token_id].token_id = new_token_id;
-            vocab[new_token_id].first_id = max_pair_1;
-            vocab[new_token_id].second_id = max_pair_2;
-            int pair_1_len = vocab[max_pair_1].token_list_len;
-            int pair_2_len = vocab[max_pair_2].token_list_len;
-            int new_tokens_len = pair_1_len + pair_2_len;
-            vocab[new_token_id].token_list_len = new_tokens_len;
-            vocab[new_token_id].token_list = (int*)malloc(new_tokens_len * sizeof(int));
-            // create new list of tokens by merging the old ones:
-            for (size_t i = 0; i < pair_1_len; i++)
-            {
-                vocab[new_token_id].token_list[i] = vocab[max_pair_1].token_list[i];
-            }
-            for (size_t i = 0; i < pair_2_len; i++)
-            {
-                vocab[new_token_id].token_list[i+pair_1_len] = vocab[max_pair_2].token_list[i];
-            }
             // add new pairs:
             AddPosition(&h, pos, new_token_id, w2_next);
-            AddPosition(&h, pos, w1_prev, new_token_id);
+            AddPosition(&h, w1_prev_ind, w1_prev, new_token_id);
+            last_added_index = next_id;
         }
     }
+    displayList(list, 0);
     freeHeap(&h);
     return vocab;
 }
 
-int main() {
-    // Create a new linked list
-    int ids[] = {1, 1, 1, 2, 1, 1, 1, 0, 8, 3};
-    int num_ids = sizeof(ids) / sizeof(ids[0]);
-    // Create a new linked list
-    struct LinkedList list = createLinkedList(ids, num_ids);
-    heap h = createHeap(100, &list);
-    printHeap(&h);
-    freeHeap(&h);
-    // Freeing the memory allocated for the linked list
-    return 0;
-}
-
 // int main() {
-//     int ids[] = {3, 7, 9, 5, 3, 7, 5, 1, 8, 3};
+//     // Create a new linked list
+//     int ids[] = {1, 1, 1, 2, 1, 1, 1, 0, 8, 3};
 //     int num_ids = sizeof(ids) / sizeof(ids[0]);
-//     int num_tokens = 15; // Choose an appropriate value
-//     int init_tokens = 10; // Choose an appropriate value
-
-//     struct Token* vocab = train(ids, num_ids, num_tokens, init_tokens);
-
-//     for (int i = 0; i < num_tokens - init_tokens; i++) {
-//         printf("Token ID: %d, First ID: %d, Second ID: %d, Token List Length: %d, Token List: ",
-//                vocab[i].token_id, vocab[i].first_id, vocab[i].second_id, vocab[i].token_list_len);
-//         for (int j = 0; j < vocab[i].token_list_len; j++) {
-//             printf("%d ", vocab[i].token_list[j]);
-//         }
-//         printf("\n");
-//         free(vocab[i].token_list);
-//     }
-
-//     free(vocab);
+//     // Create a new linked list
+//     struct LinkedList list = createLinkedList(ids, num_ids);
+//     heap h = createHeap(100, &list);
+//     printHeap(&h);
+//     freeHeap(&h);
+//     // Freeing the memory allocated for the linked list
 //     return 0;
 // }
+
+int main() {
+    int ids[] = {3, 4, 0, 4, 3, 4, 0, 5, 2, 5, 1, 0, 2, 0, 2, 0, 1, 2};
+    int num_ids = sizeof(ids) / sizeof(ids[0]);
+    int num_tokens = 15; // Choose an appropriate value
+    int init_tokens = 10; // Choose an appropriate value
+    struct Token* vocab = train(ids, num_ids, num_tokens, init_tokens);
+
+    for (int i = 0; i < num_tokens; i++) {
+        printf("Token ID: %d, First ID: %d, Second ID: %d, Token List Length: %d, Token List: ",
+               vocab[i].token_id, vocab[i].first_id, vocab[i].second_id, vocab[i].token_list_len);
+        for (int j = 0; j < vocab[i].token_list_len; j++) {
+            printf("%d ", vocab[i].token_list[j]);
+        }
+        printf("\n");
+        free(vocab[i].token_list);
+    }
+    free(vocab);
+    return 0;
+}
