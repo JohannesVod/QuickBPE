@@ -72,7 +72,6 @@ int getPrevElement(struct LinkedList *list, int index){
 void displayList(struct LinkedList list, int raw) {
     int curr = getNextIndex(&list, -1);
     while (curr != -1){
-        printf("%d -- ", list.data[curr]);
         if (raw){
             curr++;
             if (curr >= list.capacity){
@@ -163,6 +162,7 @@ int extractMaxPair(heap* h)
         return -1; // Return NULL to indicate an empty heap
     }
     int result = h->arr[0].pair_index;
+    // printf("max value: %f := ", h->arr[0].key);
     // delete element:
     swap(h, 0, h->size-1);
     h->size--;
@@ -228,6 +228,12 @@ void freeHeap(heap *hp){
 // **********************************
 // Main functions:
 // **********************************
+
+
+float convertToKey(heap *h, int key, int pair_index){
+    float res = key + (1-((float)pair_index/(1.2*h->capacity)));
+    return res;
+}
 
 /**
  * @brief Creates a heap object and returns it by value
@@ -345,6 +351,7 @@ struct Token {
     int* token_list; // the corresponding tokens
 };
 
+extern "C"{
 /**
  * @brief Main algorithm for training tokenization model.
  *
@@ -384,6 +391,7 @@ struct Token* train(int* ids, int num_ids, int num_tokens, int init_tokens) {
     // main algorithm:
     for (size_t i = 0; i < total_merges; i++)
     {
+        // displayList(list, 0);
         // get max pair:
         int best_pair = extractMaxPair(&h);
         if (best_pair == -1){
@@ -392,7 +400,7 @@ struct Token* train(int* ids, int num_ids, int num_tokens, int init_tokens) {
         }
         int max_pair_1 = (int)(best_pair / h.vocabSize);
         int max_pair_2 = best_pair % h.vocabSize;
-        printf("merging %d, %d\n", max_pair_1, max_pair_2);
+        // printf("merging %d, %d\n", max_pair_1, max_pair_2);
         // store new token in the final output:
         int new_token_id = init_tokens + i;
         vocab[new_token_id].token_id = new_token_id;
@@ -440,9 +448,10 @@ struct Token* train(int* ids, int num_ids, int num_tokens, int init_tokens) {
             last_added_index = next_id;
         }
     }
-    displayList(list, 0);
+    
     freeHeap(&h);
     return vocab;
+}
 }
 
 void RemovePositionFromPairs(std::unordered_map<int, std::unique_ptr<std::set<int>>> &pair_sets, 
@@ -469,6 +478,7 @@ void AddPositionToPairs(std::unordered_map<int, std::unique_ptr<std::set<int>>> 
     pairSet.insert(index);
 }
 
+extern "C"{
 /**
  * @brief Tokenizes text given by an array of IDs and uses token pairs to decode the text.
  *
@@ -547,23 +557,24 @@ int* tokenize(int *ids, int num_ids, int *token_pairs, int token_pairs_count, in
     }
     return result;
 }
+}
 
-// int main() {
-//     int ids[] = {3, 4, 0, 4, 3, 4, 0, 5, 2, 5, 1, 0, 2, 0, 2, 0, 1, 2};
-//     int num_ids = sizeof(ids) / sizeof(ids[0]);
-//     int num_tokens = 15; // Choose an appropriate value
-//     int init_tokens = 10; // Choose an appropriate value
-//     struct Token* vocab = train(ids, num_ids, num_tokens, init_tokens);
+int main() {
+    int ids[] = {3, 4, 3, 4, 1, 2, 1, 2};
+    int num_ids = sizeof(ids) / sizeof(ids[0]);
+    int num_tokens = 15; // Choose an appropriate value
+    int init_tokens = 10; // Choose an appropriate value
+    struct Token* vocab = train(ids, num_ids, num_tokens, init_tokens);
 
-//     for (int i = 0; i < num_tokens; i++) {
-//         printf("Token ID: %d, First ID: %d, Second ID: %d, Token List Length: %d, Token List: ",
-//                vocab[i].token_id, vocab[i].first_id, vocab[i].second_id, vocab[i].token_list_len);
-//         for (int j = 0; j < vocab[i].token_list_len; j++) {
-//             printf("%d ", vocab[i].token_list[j]);
-//         }
-//         printf("\n");
-//         free(vocab[i].token_list);
-//     }
-//     free(vocab);
-//     return 0;
-// }
+    for (int i = 0; i < num_tokens; i++) {
+        printf("Token ID: %d, First ID: %d, Second ID: %d, Token List Length: %d, Token List: ",
+               vocab[i].token_id, vocab[i].first_id, vocab[i].second_id, vocab[i].token_list_len);
+        for (int j = 0; j < vocab[i].token_list_len; j++) {
+            printf("%d ", vocab[i].token_list[j]);
+        }
+        printf("\n");
+        free(vocab[i].token_list);
+    }
+    free(vocab);
+    return 0;
+}

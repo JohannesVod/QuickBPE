@@ -51,4 +51,4 @@ if __name__ == "__main__":
     # [1, 3, 0, 1, 0, 3, 1, 0, 3, 0]
     merges, vocab = trainFast(ids, 259)
     # print("vocab: ", vocab)
-    #print("merges: ", merges)
+    # print("merges: ", merges)

@@ -18,7 +18,6 @@ from .base import Tokenizer, get_stats, merge
 GPT2_SPLIT_PATTERN = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
 GPT4_SPLIT_PATTERN = r"""'(?i:[sdmt]|ll|ve|re)|[^\r\n\p{L}\p{N}]?+\p{L}+|\p{N}{1,3}| ?[^\s\p{L}\p{N}]++[\r\n]*|\s*[\r\n]|\s+(?!\S)|\s+"""
 
-
 class RegexTokenizer(Tokenizer):
 
     def __init__(self, pattern=None):
@@ -33,8 +32,8 @@ class RegexTokenizer(Tokenizer):
         self.special_tokens = {}
         self.inverse_special_tokens = {}
 
-    def trainFaster(self, text, vocab_size, verbose=False):
-        assert vocab_size >= 256
+    def trainFaster(self, text, vocab_size, init_tokens, verbose=False):
+        assert vocab_size >= init_tokens
 
         print("splitting text chunk...")
         # split the text up into text chunks
@@ -46,7 +45,6 @@ class RegexTokenizer(Tokenizer):
         bytes_total = 0
         for el in ids:
             bytes_total += len(el)
-        
         print("loading into array...")
         id_list = [0 for _ in range(len(ids) + bytes_total)]
         i = 0
@@ -56,9 +54,8 @@ class RegexTokenizer(Tokenizer):
                 id_list[i] = el
                 i += 1
             i += 1
-        print(len(id_list))
         print("merging...")
-        self.merges, self.vocab =  trainFast(id_list[:-2] + [10, 0], vocab_size)
+        self.merges, self.vocab =  trainFast(id_list[:-2] + [10, 0], vocab_size, init_tokens)
         return self.merges, self.vocab
 
     def train(self, text, vocab_size, verbose=False):
@@ -100,6 +97,48 @@ class RegexTokenizer(Tokenizer):
         self.merges = merges # used in encode()
         self.vocab = vocab   # used in decode()
         return self.merges, self.vocab
+
+    def checkSolution(self, text, vocab_size, merges, vocab, init_vocab):
+        reverse_merges = {merges[i]:i for i in merges}
+        tok_ids = {i for i in reverse_merges}
+        if tok_ids != set(range(init_vocab, vocab_size)):
+            raise RuntimeError("not every token is assigned:(", set(range(init_vocab, vocab_size)), tok_ids)
+        
+        def getMax(stats, curr_size, suggested_max, curr_ind):
+            max_pair = None
+            max_count = -1
+            for i in range(curr_size):
+                for j in range(curr_size):
+                    pair = (i, j)
+                    this_count = stats.get(pair, -1)
+                    if this_count > max_count:
+                        max_count = this_count
+                        max_pair = pair
+            if max_count != stats.get(suggested_max):
+                raise RuntimeError(f"At {curr_ind} we have as correct max pair: {max_pair} (with cost {max_count}). But our algorithm gave {suggested_max} with cost real cost {stats.get(suggested_max)}")
+            return suggested_max
+
+        assert vocab_size >= 256
+        num_merges = vocab_size - 256
+
+        # split the text up into text chunks
+        text_chunks = re.findall(self.compiled_pattern, text)
+        ids = [list(ch.encode("utf-8")) for ch in text_chunks]
+
+        merges = {} # (int, int) -> int
+        vocab = {idx: bytes([idx]) for idx in range(256)} # idx -> bytes
+        for i in range(num_merges):
+            idx = 256 + i
+            stats = {}
+            for chunk_ids in ids:
+                get_stats(chunk_ids, stats)
+            suggested_max = reverse_merges[idx]
+            pair = getMax(stats, vocab_size, suggested_max)
+            ids = [merge(chunk_ids, pair, idx) for chunk_ids in ids]
+            merges[pair] = idx
+            vocab[idx] = vocab[pair[0]] + vocab[pair[1]]
+            print(f"checking {i}")
+
 
     def register_special_tokens(self, special_tokens):
         # special_tokens is a dictionary of str -> int
