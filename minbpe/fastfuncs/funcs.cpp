@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <vector>
-#include <set>
+#include <unordered_set>
 #include <unordered_map>
 #include <math.h>
 #include <memory>
@@ -107,7 +107,7 @@ typedef struct HeapNode heapNode;
 struct Heap {
     heapNode* arr; // pointer to the data
     std::unordered_map<int, int> pairPositions;
-    std::unordered_map<int, std::unique_ptr<std::set<int>>> pairSets;
+    std::unordered_map<int, std::unique_ptr<std::unordered_set<int>>> pairSets;
     int size;
     int capacity;
     int vocabSize;
@@ -179,7 +179,7 @@ void insert(heap* h, int key, int pair_index)
     if (h->size < h->capacity) {
         h->arr[h->size].key = key;
         h->arr[h->size].pair_index = pair_index;
-        h->pairSets[pair_index] = std::make_unique<std::set<int>>();
+        h->pairSets[pair_index] = std::make_unique<std::unordered_set<int>>();
         h->pairPositions[pair_index] = h->size;
         bubbleUp(h, h->size);
         h->size++;
@@ -224,7 +224,6 @@ void printHeap(heap* h)
 void freeHeap(heap *hp){
     free(hp->arr);
     hp->pairPositions.clear();
-    printf("%d", hp->pairSets.size());
     hp->pairSets.clear();
 }
 
@@ -252,7 +251,7 @@ heap createHeap(int vocab_size, struct LinkedList *ids)
     heap h; // create a heap object on the stack
     int capacity = vocab_size*vocab_size;
     // maybe replace with array, but then a lot of memory
-    h.pairSets = std::unordered_map<int, std::unique_ptr<std::set<int>>>();
+    h.pairSets = std::unordered_map<int, std::unique_ptr<std::unordered_set<int>>>();
 
     // count all pairs initially:
     int last_added_index = 0;
@@ -268,7 +267,7 @@ heap createHeap(int vocab_size, struct LinkedList *ids)
         }
         if (first_el != 0 && second_el != 0){
             if (h.pairSets.find(index) == h.pairSets.end()){
-                h.pairSets[index] = std::make_unique<std::set<int>>();
+                h.pairSets[index] = std::make_unique<std::unordered_set<int>>();
             }
             h.pairSets[index]->insert(i);
         }
@@ -386,10 +385,7 @@ struct Token* train(int* ids, int num_ids, int num_tokens, int init_tokens) {
 
     // build inital heap:
     struct LinkedList list = createLinkedList(ids, num_ids);
-    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
     heap h = createHeap(num_tokens, &list);
-    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-    printf("Time difference = %d seconds\n", std::chrono::duration_cast<std::chrono::seconds>(end - begin).count());
 
     // number of merges we still need:
     int total_merges = num_tokens-init_tokens;
@@ -459,7 +455,7 @@ struct Token* train(int* ids, int num_ids, int num_tokens, int init_tokens) {
 }
 }
 
-void RemovePositionFromPairs(std::unordered_map<int, std::unique_ptr<std::set<int>>> &pair_sets, 
+void RemovePositionFromPairs(std::unordered_map<int, std::unique_ptr<std::unordered_set<int>>> &pair_sets, 
                             int index, int tok_1, int tok_2, int vocab_size) {
     if (tok_1 <= 0 || tok_2 <= 0) { // ignore if separated by 0 or out of bound
         return;
@@ -469,7 +465,7 @@ void RemovePositionFromPairs(std::unordered_map<int, std::unique_ptr<std::set<in
     pairSet->erase(index);
 }
 
-void AddPositionToPairs(std::unordered_map<int, std::unique_ptr<std::set<int>>> &pair_sets, 
+void AddPositionToPairs(std::unordered_map<int, std::unique_ptr<std::unordered_set<int>>> &pair_sets, 
                         int index, int tok_1, int tok_2, int vocab_size) {
     if (tok_1 <= 0 || tok_2 <= 0) { // ignore if separated by 0 or out of bound
         return;
@@ -477,11 +473,18 @@ void AddPositionToPairs(std::unordered_map<int, std::unique_ptr<std::set<int>>> 
     int pair_index = tok_1 * vocab_size + tok_2;
     if (pair_sets.find(pair_index) == pair_sets.end()) {
         // if not added yet (unseen pair), add it to the corresponding set
-        pair_sets[pair_index] = std::make_unique<std::set<int>>();
+        pair_sets[pair_index] = std::make_unique<std::unordered_set<int>>();
     }
     auto& pairSet = *pair_sets[pair_index];
     pairSet.insert(index);
 }
+
+struct tokenizeResult{
+    int length;
+    int *result;
+};
+
+// TODO: try red black tree instead of hashing. Try prehash.
 
 extern "C"{
 /**
@@ -498,10 +501,11 @@ extern "C"{
  * @return A pointer to an array of integers representing the tokenized text.
  *         This array needs to be freed after use.
  */
-int* tokenize(int *ids, int num_ids, int *token_pairs, int token_pairs_count, int vocab_size, int init_tokens){
-    struct LinkedList list = createLinkedList(ids, num_ids);
-    std::unordered_map<int, std::unique_ptr<std::set<int>>> pair_positions;
+struct tokenizeResult tokenize(int *ids, int num_ids, int *token_pairs, int token_pairs_count, int vocab_size, int init_tokens){
+    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
 
+    struct LinkedList list = createLinkedList(ids, num_ids);
+    std::unordered_map<int, std::unique_ptr<std::unordered_set<int>>> pair_positions;
     // count all pairs initially:
     int last_added_index = 0;
     int last_added_pair_index = -1;
@@ -510,22 +514,26 @@ int* tokenize(int *ids, int num_ids, int *token_pairs, int token_pairs_count, in
         int second_el = ids[i + 1];
         int index = first_el*vocab_size + second_el;
         if (pair_positions.find(index) == pair_positions.end()){
-            pair_positions[index] = std::make_unique<std::set<int>>();
+            pair_positions[index] = std::make_unique<std::unordered_set<int>>((int)num_ids/(4*vocab_size)); //why 550 is good?
         }
         pair_positions[index]->insert(i);
         last_added_index = i;
         last_added_pair_index = index;
     }
-
+    
+    
     for (size_t i = 0; i < token_pairs_count; i++)
     {
         int curr_pair = token_pairs[i];
+        if (pair_positions.find(curr_pair) == pair_positions.end()){
+            continue;
+        }
         int tok_1 = (int)curr_pair/vocab_size;
         int tok_2 = curr_pair%vocab_size;
         auto& pairSet = pair_positions[curr_pair];
         int last_added_index = -1;
         int new_token_id = init_tokens + i;
-
+        
         for (auto& pos: *pairSet) {
             if (pos == last_added_index){ // needed for repeating tokens
                 continue; 
@@ -552,6 +560,8 @@ int* tokenize(int *ids, int num_ids, int *token_pairs, int token_pairs_count, in
             last_added_index = next_id;
         }
     }
+    // return tokenizeResult{num_ids, ids};
+
     int *result = (int *)malloc(list.size*sizeof(int));
     int curr = getNextIndex(&list, -1);
     int curr_ind = 0;
@@ -560,13 +570,15 @@ int* tokenize(int *ids, int num_ids, int *token_pairs, int token_pairs_count, in
         curr = getNextIndex(&list, curr);
         curr_ind++;
     }
-    return result;
+    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+    printf("Time taken: %d milliseconds\n", std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count());
+    return tokenizeResult{curr_ind, result};
 }
 }
 
 int main() {
     srand(time(NULL)); // Seed for random number generation
-    int num_ids = 9278050; // chunk size
+    int num_ids = 100000; // chunk size
     int *ids = (int *)malloc(num_ids * sizeof(int));
 
     // Fill array with random numbers from 1 to 255
@@ -577,6 +589,23 @@ int main() {
     int num_tokens = 5000; // Choose an appropriate value
     int init_tokens = 256; // Choose an appropriate value
     struct Token* vocab = train(ids, num_ids, num_tokens, init_tokens);
+
+    int *vocab_raw = (int*) malloc((num_tokens-init_tokens)*sizeof(int));
+    for (size_t i = 0; i < num_tokens-init_tokens; i++)
+    {
+        int ind = init_tokens + i;
+        int combine_ind = vocab[ind].first_id*num_tokens + vocab[ind].second_id;
+        vocab_raw[i] = combine_ind;
+    }
+
+    int tok_num_ids = 5000000;
+    int *ids_tok = (int *)malloc(tok_num_ids * sizeof(int));
+
+    // Fill array with random numbers from 1 to 255
+    for (int i = 0; i < tok_num_ids; i++) {
+        ids_tok[i] = rand() % 255 + 1;
+    }
+    tokenize(ids_tok, tok_num_ids, vocab_raw, num_tokens-init_tokens, num_tokens, init_tokens);
 
     // for (int i = 0; i < num_tokens; i++) {
     //     printf("Token ID: %d, First ID: %d, Second ID: %d, Token List Length: %d, Token List: ",

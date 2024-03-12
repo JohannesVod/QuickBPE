@@ -11,6 +11,12 @@ class Result(ctypes.Structure):
         ('token_list', ctypes.POINTER(ctypes.c_int))
     ]
 
+class TokenizeResult(ctypes.Structure):
+    _fields_ = [
+        ('length', ctypes.c_int),
+        ('result', ctypes.POINTER(ctypes.c_int))
+    ]
+
 # Load the DLL
 script_dir = os.path.dirname(os.path.abspath(__file__))
 dll_path = os.path.join(script_dir, "funcs.dll")
@@ -20,8 +26,8 @@ funcs = ctypes.CDLL(dll_path)
 funcs.train.restype = ctypes.POINTER(Result)
 funcs.train.argtypes = [ctypes.POINTER(ctypes.c_int), ctypes.c_int, ctypes.c_int, ctypes.c_int]
 
-funcs.tokenize.restype = ctypes.POINTER(Result)
-funcs.tokenize.argtypes = [ctypes.POINTER(ctypes.c_int), ctypes.c_int, ctypes.c_int, ctypes.c_int]
+funcs.tokenize.restype = TokenizeResult
+funcs.tokenize.argtypes = [ctypes.POINTER(ctypes.c_int), ctypes.c_int]
 
 def trainFast(ids, num_tokens, init_tokens=256):
     """
@@ -51,18 +57,21 @@ def tokenizeFast(ids, pairs, vocab_size, init_tokens):
     pairs = [pair[0]*vocab_size+pair[1] for pair in pairs]
     pairs_arr = (ctypes.c_int * len(pairs))(*pairs)
     results_ptr = funcs.tokenize(ids_arr, len(ids_arr), pairs_arr, len(pairs_arr), vocab_size, init_tokens)
-    print(results_ptr)
+    print("reading result...")
+    tokenized_text = [results_ptr.result[i] for i in range(results_ptr.length)]
+    print("ready!")
 
 from random import randrange
 
 if __name__ == "__main__":
     # Example usage
     init_tokens = 256
-    vocab_size = 259
-    ids = [randrange(1, init_tokens) for i in range(1000000)]
+    vocab_size = 5000
+    ids = [randrange(1, init_tokens) for i in range(100000)]
     # [1, 3, 0, 1, 0, 3, 1, 0, 3, 0]
     merges, vocab = trainFast(ids, vocab_size)
-    to_encode = [randrange(1, init_tokens) for i in range(1000000)]
+    print("start tokenizing:")
+    to_encode = [randrange(1, init_tokens) for i in range(100000)]
     tokenizeFast(to_encode, merges, vocab_size, init_tokens)
     # print("vocab: ", vocab)
     # print("merges: ", merges)

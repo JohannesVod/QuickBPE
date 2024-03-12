@@ -5,7 +5,7 @@ from minbpe import RegexTokenizer
 
 # open some text and train a vocab of 512 tokens
 text = open("tests/taylorswift.txt", "r", encoding="utf-8").read()
-text = "".join([text for _ in range(50)])
+text = "".join([text for _ in range(500)]) # 92780500
 print(len(text))
 # create a directory for models, so we don't pollute the current directory
 os.makedirs("models", exist_ok=True)
