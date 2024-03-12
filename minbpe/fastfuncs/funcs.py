@@ -20,6 +20,9 @@ funcs = ctypes.CDLL(dll_path)
 funcs.train.restype = ctypes.POINTER(Result)
 funcs.train.argtypes = [ctypes.POINTER(ctypes.c_int), ctypes.c_int, ctypes.c_int, ctypes.c_int]
 
+funcs.tokenize.restype = ctypes.POINTER(Result)
+funcs.tokenize.argtypes = [ctypes.POINTER(ctypes.c_int), ctypes.c_int, ctypes.c_int, ctypes.c_int]
+
 def trainFast(ids, num_tokens, init_tokens=256):
     """
     trains on ids which are already separated 
@@ -43,12 +46,23 @@ def trainFast(ids, num_tokens, init_tokens=256):
         vocab[el[0]] = el[3]
     return merges, vocab
 
+def tokenizeFast(ids, pairs, vocab_size, init_tokens):
+    ids_arr = (ctypes.c_int * len(ids))(*ids)
+    pairs = [pair[0]*vocab_size+pair[1] for pair in pairs]
+    pairs_arr = (ctypes.c_int * len(pairs))(*pairs)
+    results_ptr = funcs.tokenize(ids_arr, len(ids_arr), pairs_arr, len(pairs_arr), vocab_size, init_tokens)
+    print(results_ptr)
+
 from random import randrange
 
 if __name__ == "__main__":
     # Example usage
-    ids = [randrange(100) for i in range(100)] + [10, 0]
+    init_tokens = 256
+    vocab_size = 259
+    ids = [randrange(1, init_tokens) for i in range(1000000)]
     # [1, 3, 0, 1, 0, 3, 1, 0, 3, 0]
-    merges, vocab = trainFast(ids, 259)
+    merges, vocab = trainFast(ids, vocab_size)
+    to_encode = [randrange(1, init_tokens) for i in range(1000000)]
+    tokenizeFast(to_encode, merges, vocab_size, init_tokens)
     # print("vocab: ", vocab)
     # print("merges: ", merges)

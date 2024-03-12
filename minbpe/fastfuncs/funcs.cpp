@@ -5,6 +5,8 @@
 #include <unordered_map>
 #include <math.h>
 #include <memory>
+#include <time.h>
+#include <chrono>
 
 struct LinkedList {
     int *data;
@@ -222,6 +224,7 @@ void printHeap(heap* h)
 void freeHeap(heap *hp){
     free(hp->arr);
     hp->pairPositions.clear();
+    printf("%d", hp->pairSets.size());
     hp->pairSets.clear();
 }
 
@@ -383,7 +386,10 @@ struct Token* train(int* ids, int num_ids, int num_tokens, int init_tokens) {
 
     // build inital heap:
     struct LinkedList list = createLinkedList(ids, num_ids);
+    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
     heap h = createHeap(num_tokens, &list);
+    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+    printf("Time difference = %d seconds\n", std::chrono::duration_cast<std::chrono::seconds>(end - begin).count());
 
     // number of merges we still need:
     int total_merges = num_tokens-init_tokens;
@@ -448,7 +454,6 @@ struct Token* train(int* ids, int num_ids, int num_tokens, int init_tokens) {
             last_added_index = next_id;
         }
     }
-    
     freeHeap(&h);
     return vocab;
 }
@@ -560,21 +565,29 @@ int* tokenize(int *ids, int num_ids, int *token_pairs, int token_pairs_count, in
 }
 
 int main() {
-    int ids[] = {3, 4, 3, 4, 1, 2, 1, 2};
-    int num_ids = sizeof(ids) / sizeof(ids[0]);
-    int num_tokens = 15; // Choose an appropriate value
-    int init_tokens = 10; // Choose an appropriate value
+    srand(time(NULL)); // Seed for random number generation
+    int num_ids = 9278050; // chunk size
+    int *ids = (int *)malloc(num_ids * sizeof(int));
+
+    // Fill array with random numbers from 1 to 255
+    for (int i = 0; i < num_ids; i++) {
+        ids[i] = rand() % 255 + 1;
+    }
+
+    int num_tokens = 5000; // Choose an appropriate value
+    int init_tokens = 256; // Choose an appropriate value
     struct Token* vocab = train(ids, num_ids, num_tokens, init_tokens);
 
-    for (int i = 0; i < num_tokens; i++) {
-        printf("Token ID: %d, First ID: %d, Second ID: %d, Token List Length: %d, Token List: ",
-               vocab[i].token_id, vocab[i].first_id, vocab[i].second_id, vocab[i].token_list_len);
-        for (int j = 0; j < vocab[i].token_list_len; j++) {
-            printf("%d ", vocab[i].token_list[j]);
-        }
-        printf("\n");
-        free(vocab[i].token_list);
-    }
+    // for (int i = 0; i < num_tokens; i++) {
+    //     printf("Token ID: %d, First ID: %d, Second ID: %d, Token List Length: %d, Token List: ",
+    //            vocab[i].token_id, vocab[i].first_id, vocab[i].second_id, vocab[i].token_list_len);
+    //     for (int j = 0; j < vocab[i].token_list_len; j++) {
+    //         printf("%d ", vocab[i].token_list[j]);
+    //     }
+    //     printf("\n");
+    //     free(vocab[i].token_list);
+    // }
     free(vocab);
+    free(ids); // Free dynamically allocated memory for ids array
     return 0;
 }
