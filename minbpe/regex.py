@@ -54,8 +54,8 @@ class RegexTokenizer(Tokenizer):
                 id_list[i] = el
                 i += 1
             i += 1
-        print("merging...")
-        self.merges, self.vocab =  trainFast(id_list[:-2] + [10, 0], vocab_size, init_tokens)
+        print("training...")
+        self.merges, self.vocab =  trainFast(id_list, vocab_size, init_tokens)
         return self.merges, self.vocab
 
     def train(self, text, vocab_size, verbose=False):
@@ -105,15 +105,8 @@ class RegexTokenizer(Tokenizer):
             raise RuntimeError("not every token is assigned:(", set(range(init_vocab, vocab_size)), tok_ids)
         
         def getMax(stats, curr_size, suggested_max, curr_ind):
-            max_pair = None
-            max_count = -1
-            for i in range(curr_size):
-                for j in range(curr_size):
-                    pair = (i, j)
-                    this_count = stats.get(pair, -1)
-                    if this_count > max_count:
-                        max_count = this_count
-                        max_pair = pair
+            max_pair = max(stats, key=stats.get)
+            max_count = stats.get(max_pair)
             if max_count != stats.get(suggested_max):
                 raise RuntimeError(f"At {curr_ind} we have as correct max pair: {max_pair} (with cost {max_count}). But our algorithm gave {suggested_max} with cost real cost {stats.get(suggested_max)}")
             return suggested_max
@@ -133,7 +126,7 @@ class RegexTokenizer(Tokenizer):
             for chunk_ids in ids:
                 get_stats(chunk_ids, stats)
             suggested_max = reverse_merges[idx]
-            pair = getMax(stats, vocab_size, suggested_max)
+            pair = getMax(stats, vocab_size, suggested_max, idx)
             ids = [merge(chunk_ids, pair, idx) for chunk_ids in ids]
             merges[pair] = idx
             vocab[idx] = vocab[pair[0]] + vocab[pair[1]]
