@@ -10,7 +10,7 @@ Unlike BasicTokenizer:
 """
 
 import regex as re
-from .fastfuncs.funcs import trainFast
+from .fastfuncs.funcs import trainFast, tokenizeFast
 from .base import Tokenizer, get_stats, merge
 
 # the main GPT text split patterns, see
@@ -31,21 +31,16 @@ class RegexTokenizer(Tokenizer):
         self.compiled_pattern = re.compile(self.pattern)
         self.special_tokens = {}
         self.inverse_special_tokens = {}
+        self.vocab_size = 0
+        self.init_tokens = 0
 
-    def trainFaster(self, text, vocab_size, init_tokens, verbose=False):
-        assert vocab_size >= init_tokens
-
-        print("splitting text chunk...")
-        # split the text up into text chunks
+    def presplit(self, text):
         text_chunks = re.findall(self.compiled_pattern, text)
-
-        print("text preprocessing")
         # input text preprocessing
         ids = [list(ch.encode("utf-8")) for ch in text_chunks]
         bytes_total = 0
         for el in ids:
             bytes_total += len(el)
-        print("loading into array...")
         id_list = [0 for _ in range(len(ids) + bytes_total)]
         i = 0
         for ch in ids:
@@ -54,48 +49,15 @@ class RegexTokenizer(Tokenizer):
                 id_list[i] = el
                 i += 1
             i += 1
-        print("training...")
-        self.merges, self.vocab =  trainFast(id_list, vocab_size, init_tokens)
-        return self.merges, self.vocab
+        return id_list
 
-    def train(self, text, vocab_size, verbose=False):
-        def getMax(stats, curr_size):
-            max_pair = None
-            max_count = -1
-            for i in range(curr_size):
-                for j in range(curr_size):
-                    pair = (i, j)
-                    this_count = stats.get(pair, -1)
-                    if this_count > max_count:
-                        max_count = this_count
-                        max_pair = pair
-            return max_pair
-
-        assert vocab_size >= 256
-        num_merges = vocab_size - 256
-
+    def train(self, text, vocab_size, init_tokens, verbose=False):
+        assert vocab_size >= init_tokens
+        self.vocab_size = vocab_size
+        self.init_tokens = init_tokens
         # split the text up into text chunks
-        text_chunks = re.findall(self.compiled_pattern, text)
-        ids = [list(ch.encode("utf-8")) for ch in text_chunks]
-
-        merges = {} # (int, int) -> int
-        vocab = {idx: bytes([idx]) for idx in range(256)} # idx -> bytes
-        for i in range(num_merges):
-            stats = {}
-            for chunk_ids in ids:
-                get_stats(chunk_ids, stats)
-            pair = getMax(stats, vocab_size)
-            idx = 256 + i
-            ids = [merge(chunk_ids, pair, idx) for chunk_ids in ids]
-            merges[pair] = idx
-            vocab[idx] = vocab[pair[0]] + vocab[pair[1]]
-            # prints
-            if verbose:
-                print(f"merge {i+1}/{num_merges}: {pair} -> {idx} ({vocab[idx]}) had {stats[pair]} occurrences")
-
-        # save class variables
-        self.merges = merges # used in encode()
-        self.vocab = vocab   # used in decode()
+        id_list = self.presplit(text)
+        self.merges, self.vocab =  trainFast(id_list, vocab_size, init_tokens)
         return self.merges, self.vocab
 
     def checkSolution(self, text, vocab_size, merges, vocab, init_vocab):
@@ -132,7 +94,6 @@ class RegexTokenizer(Tokenizer):
             vocab[idx] = vocab[pair[0]] + vocab[pair[1]]
             print(f"checking {i}")
 
-
     def register_special_tokens(self, special_tokens):
         # special_tokens is a dictionary of str -> int
         # example: {"<|endoftext|>": 100257}
@@ -149,6 +110,7 @@ class RegexTokenizer(Tokenizer):
                 part_bytes.append(self.inverse_special_tokens[idx].encode("utf-8"))
             else:
                 raise ValueError(f"invalid token id: {idx}")
+        print(part_bytes)
         text_bytes = b"".join(part_bytes)
         text = text_bytes.decode("utf-8", errors="replace")
         return text
@@ -184,7 +146,14 @@ class RegexTokenizer(Tokenizer):
             ids.extend(chunk_ids)
         return ids
 
-    def encode(self, text, allowed_special="none_raise"):
+    def encode(self, text):
+        split_indices = [m.start(0) for m in re.finditer(self.compiled_pattern, text)]
+        ids = list(text.encode("utf-8"))
+        ids.append(len(text))
+        result = tokenizeFast(ids, split_indices, self.merges, self.vocab_size, self.init_tokens)
+        return result
+
+    def encodeSlow(self, text, allowed_special="none_raise"):
         """
         Unlike encode_ordinary, this function handles special tokens.
         allowed_special: can be "all"|"none"|"none_raise" or a custom set of special tokens

@@ -7,6 +7,7 @@
 #include <memory>
 #include <time.h>
 #include <chrono>
+#include <algorithm>
 
 struct LinkedList {
     int *data;
@@ -501,7 +502,7 @@ extern "C"{
  * @return A pointer to an array of integers representing the tokenized text.
  *         This array needs to be freed after use.
  */
-struct tokenizeResult tokenize(int *ids, int num_ids, int *token_pairs, int token_pairs_count, int vocab_size, int init_tokens){
+struct tokenizeResult tokenize2(int *ids, int num_ids, int *token_pairs, int token_pairs_count, int vocab_size, int init_tokens){
     struct LinkedList list = createLinkedList(ids, num_ids);
     std::unordered_map<int, std::unique_ptr<std::unordered_set<int>>> pair_positions;
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
@@ -534,9 +535,7 @@ struct tokenizeResult tokenize(int *ids, int num_ids, int *token_pairs, int toke
             }
         }
     }
-    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-    printf("time taken: %d milliseconds\n", std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count());
-    return tokenizeResult{num_ids, ids};
+    
     for (size_t i = 0; i < token_pairs_count; i++)
     {
         int curr_pair = token_pairs[i];
@@ -546,10 +545,15 @@ struct tokenizeResult tokenize(int *ids, int num_ids, int *token_pairs, int toke
         int tok_1 = (int)curr_pair/vocab_size;
         int tok_2 = curr_pair%vocab_size;
         auto& pairSet = pair_positions[curr_pair];
+        std::vector<int> sortedPositions;
+        for (auto it = pairSet->begin(); it != pairSet->end(); ++it) {
+            sortedPositions.push_back(*it);
+        }
+        std::sort(sortedPositions.begin(), sortedPositions.end()); // make sure to iterate in sorted order
         int last_added_index = -1;
         int new_token_id = init_tokens + i;
-        
-        for (auto& pos: *pairSet) {
+
+        for (auto& pos : sortedPositions)  {
             if (pos == last_added_index){ // needed for repeating tokens
                 continue; 
             }
@@ -580,56 +584,81 @@ struct tokenizeResult tokenize(int *ids, int num_ids, int *token_pairs, int toke
     int curr = getNextIndex(&list, -1);
     int curr_ind = 0;
     while (curr != -1){
-        result[curr_ind] = list.data[curr];
+        int el_data = list.data[curr];
+        if (list.data[curr] != 0){
+            result[curr_ind] = list.data[curr];
+            curr_ind++;
+        }
         curr = getNextIndex(&list, curr);
-        curr_ind++;
     }
-
+    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+    printf("time taken: %d milliseconds\n", std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count());
     return tokenizeResult{curr_ind, result};
 }
 }
 
-int main() {
-    srand(time(NULL)); // Seed for random number generation
-    int num_ids = 10000; // chunk size
-    int *ids = (int *)malloc(num_ids * sizeof(int));
-
-    // Fill array with random numbers from 1 to 255
-    for (int i = 0; i < num_ids; i++) {
-        ids[i] = rand() % 255 + 1;
-    }
-
-    int num_tokens = 10000;
-    int init_tokens = 256;
-    struct Token* vocab = train(ids, num_ids, num_tokens, init_tokens);
-
-    int *vocab_raw = (int*) malloc((num_tokens-init_tokens)*sizeof(int));
-    for (size_t i = 0; i < num_tokens-init_tokens; i++)
-    {
-        int ind = init_tokens + i;
-        int combine_ind = vocab[ind].first_id*num_tokens + vocab[ind].second_id;
-        vocab_raw[i] = combine_ind;
-    }
-
-    int tok_num_ids = 100000000;
-    int *ids_tok = (int *)malloc(tok_num_ids * sizeof(int));
-
-    // Fill array with random numbers from 1 to 255
-    for (int i = 0; i < tok_num_ids; i++) {
-        ids_tok[i] = rand() % 255 + 1;
-    }
-    tokenize(ids_tok, tok_num_ids, vocab_raw, num_tokens-init_tokens, num_tokens, init_tokens);
-
-    // for (int i = 0; i < num_tokens; i++) {
-    //     printf("Token ID: %d, First ID: %d, Second ID: %d, Token List Length: %d, Token List: ",
-    //            vocab[i].token_id, vocab[i].first_id, vocab[i].second_id, vocab[i].token_list_len);
-    //     for (int j = 0; j < vocab[i].token_list_len; j++) {
-    //         printf("%d ", vocab[i].token_list[j]);
-    //     }
-    //     printf("\n");
-    //     free(vocab[i].token_list);
-    // }
-    free(vocab);
-    free(ids); // Free dynamically allocated memory for ids array
-    return 0;
+std::vector<int> merge(std::vector<int> &ids, int tok_1, int tok_2){
+    
 }
+
+struct tokenizeResult tokenize(int *ids, int num_ids, int *splits, int len_splits, int *token_pairs, int token_pairs_count, int vocab_size, int init_tokens){
+    // splits denote the places where the string got splitted by regex
+    std::vector<std::vector<int>> splitted(len_splits);
+    for (size_t i = 0; i < len_splits-1; i++)
+    {
+        int curr = splits[i];
+        int next = splits[i+1];
+        std::vector<int> chunk(next-curr);
+        for (size_t j = curr; j < next; j++)
+        {
+            chunk.push_back(ids[j]);
+        }
+    }
+
+
+}
+
+// int main() {
+//     srand(time(NULL)); // Seed for random number generation
+//     int num_ids = 10000; // chunk size
+//     int *ids = (int *)malloc(num_ids * sizeof(int));
+
+//     // Fill array with random numbers from 1 to 255
+//     for (int i = 0; i < num_ids; i++) {
+//         ids[i] = rand() % 255 + 1;
+//     }
+
+//     int num_tokens = 10000;
+//     int init_tokens = 256;
+//     struct Token* vocab = train(ids, num_ids, num_tokens, init_tokens);
+
+//     int *vocab_raw = (int*) malloc((num_tokens-init_tokens)*sizeof(int));
+//     for (size_t i = 0; i < num_tokens-init_tokens; i++)
+//     {
+//         int ind = init_tokens + i;
+//         int combine_ind = vocab[ind].first_id*num_tokens + vocab[ind].second_id;
+//         vocab_raw[i] = combine_ind;
+//     }
+
+//     int tok_num_ids = 100000000;
+//     int *ids_tok = (int *)malloc(tok_num_ids * sizeof(int));
+
+//     // Fill array with random numbers from 1 to 255
+//     for (int i = 0; i < tok_num_ids; i++) {
+//         ids_tok[i] = rand() % 255 + 1;
+//     }
+//     tokenize(ids_tok, tok_num_ids, vocab_raw, num_tokens-init_tokens, num_tokens, init_tokens);
+
+//     // for (int i = 0; i < num_tokens; i++) {
+//     //     printf("Token ID: %d, First ID: %d, Second ID: %d, Token List Length: %d, Token List: ",
+//     //            vocab[i].token_id, vocab[i].first_id, vocab[i].second_id, vocab[i].token_list_len);
+//     //     for (int j = 0; j < vocab[i].token_list_len; j++) {
+//     //         printf("%d ", vocab[i].token_list[j]);
+//     //     }
+//     //     printf("\n");
+//     //     free(vocab[i].token_list);
+//     // }
+//     free(vocab);
+//     free(ids); // Free dynamically allocated memory for ids array
+//     return 0;
+// }

@@ -1,6 +1,7 @@
 import ctypes
 import os
 import struct
+import numpy as np
 # Define the structure for the result tuple
 class Result(ctypes.Structure):
     _fields_ = [
@@ -27,7 +28,10 @@ funcs.train.restype = ctypes.POINTER(Result)
 funcs.train.argtypes = [ctypes.POINTER(ctypes.c_int), ctypes.c_int, ctypes.c_int, ctypes.c_int]
 
 funcs.tokenize.restype = TokenizeResult
-funcs.tokenize.argtypes = [ctypes.POINTER(ctypes.c_int), ctypes.c_int]
+funcs.tokenize.argtypes = [ctypes.POINTER(ctypes.c_int), ctypes.c_int, 
+                           ctypes.POINTER(ctypes.c_int), ctypes.c_int, 
+                           ctypes.POINTER(ctypes.c_int), ctypes.c_int, 
+                           ctypes.c_int, ctypes.c_int]
 
 def trainFast(ids, num_tokens, init_tokens=256):
     """
@@ -49,17 +53,20 @@ def trainFast(ids, num_tokens, init_tokens=256):
     for el in results:
         if el[0] >= init_tokens:
             merges[(el[1], el[2])] = el[0]
-        vocab[el[0]] = el[3]
+        vocab[el[0]] = bytes(el[3])
     return merges, vocab
 
-def tokenizeFast(ids, pairs, vocab_size, init_tokens):
-    ids_arr = (ctypes.c_int * len(ids))(*ids)
+def tokenizeFast(ids, split_indices, pairs, vocab_size, init_tokens):
     pairs = [pair[0]*vocab_size+pair[1] for pair in pairs]
     pairs_arr = (ctypes.c_int * len(pairs))(*pairs)
-    results_ptr = funcs.tokenize(ids_arr, len(ids_arr), pairs_arr, len(pairs_arr), vocab_size, init_tokens)
-    print("reading result...")
-    tokenized_text = [results_ptr.result[i] for i in range(results_ptr.length)]
-    print("ready!")
+    splits_arr = (ctypes.c_int * len(pairs))(*split_indices)
+    ids = np.array(ids)
+    results_ptr = funcs.tokenize(ids.ctypes.data_as(ctypes.POINTER(ctypes.c_int)), len(ids), splits_arr, len(splits_arr), pairs_arr, len(pairs_arr), vocab_size, init_tokens)
+    tokenized_text_size = results_ptr.length
+    tokenized_text_buffer = (ctypes.c_int * tokenized_text_size)()
+    ctypes.memmove(tokenized_text_buffer, results_ptr.result, ctypes.sizeof(ctypes.c_int) * tokenized_text_size)
+    tokenized_text = list(tokenized_text_buffer)
+    return tokenized_text
 
 from random import randrange
 
@@ -70,8 +77,9 @@ if __name__ == "__main__":
     ids = [randrange(1, init_tokens) for i in range(100000)]
     # [1, 3, 0, 1, 0, 3, 1, 0, 3, 0]
     merges, vocab = trainFast(ids, vocab_size)
-    print("start tokenizing:")
-    to_encode = [randrange(1, init_tokens) for i in range(100000000)]
+    size = 100000000
+    to_encode = np.random.randint(1, init_tokens, size)
+    to_encode = list(to_encode)
     tokenizeFast(to_encode, merges, vocab_size, init_tokens)
     # print("vocab: ", vocab)
     # print("merges: ", merges)
