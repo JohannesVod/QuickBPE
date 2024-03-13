@@ -71,7 +71,7 @@ if __name__ == "__main__":
     # [1, 3, 0, 1, 0, 3, 1, 0, 3, 0]
     merges, vocab = trainFast(ids, vocab_size)
     print("start tokenizing:")
-    to_encode = [randrange(1, init_tokens) for i in range(100000)]
+    to_encode = [randrange(1, init_tokens) for i in range(100000000)]
     tokenizeFast(to_encode, merges, vocab_size, init_tokens)
     # print("vocab: ", vocab)
     # print("merges: ", merges)

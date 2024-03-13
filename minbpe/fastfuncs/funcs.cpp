@@ -484,7 +484,7 @@ struct tokenizeResult{
     int *result;
 };
 
-// TODO: try red black tree instead of hashing. Try prehash.
+// Custom hash function and precreation of sets
 
 extern "C"{
 /**
@@ -502,26 +502,41 @@ extern "C"{
  *         This array needs to be freed after use.
  */
 struct tokenizeResult tokenize(int *ids, int num_ids, int *token_pairs, int token_pairs_count, int vocab_size, int init_tokens){
-    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-
     struct LinkedList list = createLinkedList(ids, num_ids);
     std::unordered_map<int, std::unique_ptr<std::unordered_set<int>>> pair_positions;
-    // count all pairs initially:
-    int last_added_index = 0;
-    int last_added_pair_index = -1;
-    for (int i = 0; i < num_ids-1; i++){
-        int first_el = ids[i];
-        int second_el = ids[i + 1];
-        int index = first_el*vocab_size + second_el;
-        if (pair_positions.find(index) == pair_positions.end()){
-            pair_positions[index] = std::make_unique<std::unordered_set<int>>((int)num_ids/(4*vocab_size)); //why 550 is good?
+    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+    std::unordered_set<int> test;
+
+    {
+        // performance improvement: store positions in vector first and then add to sets
+        std::vector<std::vector<int>> pair_positions_fast(init_tokens * init_tokens);
+        // count all pairs initially:
+        int last_added_index = 0;
+        int last_added_pair_index = -1;
+        for (int i = 0; i < num_ids-1; i++){
+            int first_el = ids[i];
+            int second_el = ids[i + 1];
+            int index = first_el*init_tokens + second_el;
+            pair_positions_fast[index].push_back(i);
+            last_added_index = i;
+            last_added_pair_index = index;
         }
-        pair_positions[index]->insert(i);
-        last_added_index = i;
-        last_added_pair_index = index;
+        for (size_t i = 0; i < init_tokens * init_tokens; i++)
+        {
+            int tok_1 = (int)i/init_tokens;
+            int tok_2 = i%init_tokens;
+            int real_index = tok_1*vocab_size + tok_2;
+            pair_positions[real_index] = std::make_unique<std::unordered_set<int>>(pair_positions_fast[i].size());
+            // insertion is much faster here because the array of the hashmap is loaded into cache:
+            for (size_t j = 0; j < pair_positions_fast[i].size(); j++)
+            {
+                pair_positions[real_index]->insert(pair_positions_fast[i][j]);
+            }
+        }
     }
-    
-    
+    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+    printf("time taken: %d milliseconds\n", std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count());
+    return tokenizeResult{num_ids, ids};
     for (size_t i = 0; i < token_pairs_count; i++)
     {
         int curr_pair = token_pairs[i];
@@ -560,7 +575,6 @@ struct tokenizeResult tokenize(int *ids, int num_ids, int *token_pairs, int toke
             last_added_index = next_id;
         }
     }
-    // return tokenizeResult{num_ids, ids};
 
     int *result = (int *)malloc(list.size*sizeof(int));
     int curr = getNextIndex(&list, -1);
@@ -570,15 +584,14 @@ struct tokenizeResult tokenize(int *ids, int num_ids, int *token_pairs, int toke
         curr = getNextIndex(&list, curr);
         curr_ind++;
     }
-    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-    printf("Time taken: %d milliseconds\n", std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count());
+
     return tokenizeResult{curr_ind, result};
 }
 }
 
 int main() {
     srand(time(NULL)); // Seed for random number generation
-    int num_ids = 100000; // chunk size
+    int num_ids = 10000; // chunk size
     int *ids = (int *)malloc(num_ids * sizeof(int));
 
     // Fill array with random numbers from 1 to 255
@@ -586,8 +599,8 @@ int main() {
         ids[i] = rand() % 255 + 1;
     }
 
-    int num_tokens = 5000; // Choose an appropriate value
-    int init_tokens = 256; // Choose an appropriate value
+    int num_tokens = 10000;
+    int init_tokens = 256;
     struct Token* vocab = train(ids, num_ids, num_tokens, init_tokens);
 
     int *vocab_raw = (int*) malloc((num_tokens-init_tokens)*sizeof(int));
@@ -598,7 +611,7 @@ int main() {
         vocab_raw[i] = combine_ind;
     }
 
-    int tok_num_ids = 5000000;
+    int tok_num_ids = 100000000;
     int *ids_tok = (int *)malloc(tok_num_ids * sizeof(int));
 
     // Fill array with random numbers from 1 to 255
