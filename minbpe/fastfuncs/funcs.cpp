@@ -455,11 +455,6 @@ struct Token* train(int* ids, int num_ids, int num_tokens, int init_tokens) {
 }
 }
 
-struct tokenizeResult{
-    int length;
-    int *result;
-};
-
 void printVector(const std::vector<uint16_t>& vec) {
     for (int value : vec) {
         std::cout << value << " ";
@@ -555,6 +550,13 @@ void _tokenizeChunk(std::vector<uint16_t> &ids, std::unordered_map<int, uint16_t
     }
 }
 
+struct tokenizeResult
+{
+    uint16_t *ids;
+    int ids_size;
+};
+
+
 extern "C"{
 /**
  * @brief Tokenizes text given by an array of IDs and uses token pairs to decode the text.
@@ -570,7 +572,7 @@ extern "C"{
  * @return A pointer to an array of integers representing the tokenized text.
  *         This array needs to be freed after use.
  */
-    uint16_t *tokenize(uint8_t *ids, int num_ids, int *splits, int len_splits, int *token_pairs, int token_pairs_count, int vocab_size, int init_tokens){
+    struct tokenizeResult tokenize(uint8_t *ids, int num_ids, int *splits, int len_splits, int *token_pairs, int token_pairs_count, int vocab_size, int init_tokens){
         // splits denote the places where the string got splitted by regex
         std::vector<std::vector<uint16_t>> splitted;
         splitted.reserve(len_splits);
@@ -600,7 +602,7 @@ extern "C"{
             total_size += splitted[i].size();
         }
 
-        uint16_t *result = (uint16_t*)(sizeof(uint16_t)*total_size);
+        uint16_t *result = (uint16_t*)malloc(sizeof(uint16_t)*total_size);
         int c = 0;
         for (size_t i = 0; i < splitted.size(); i++)
         {
@@ -610,22 +612,30 @@ extern "C"{
                 c++;
             }
         }
-        return result;
+        return tokenizeResult{result, total_size};
     }
 }
 
-int main() {
-    int vocab_size = 10;
-    std::vector<uint8_t> test = {0, 1, 4, 2, 4, 1, 3, 4, 2, 4};
-    std::vector<int> splits = {0, 4, 6, 9, 10};
-    std::vector<int> token_pairs = {
-        4*vocab_size + 2, // 5
-        1*vocab_size + 5, // 6
-        0*vocab_size + 6, // 7
-    };
-    tokenize(&test[0], test.size(), &splits[0], splits.size(), &token_pairs[0], token_pairs.size(), vocab_size, 5);
-    return 0;
-}
+// int main() {
+//     int vocab_size = 10;
+//     std::vector<uint8_t> test = {0, 1, 4, 2,
+//                                 4, 1,      
+//                                 1, 4, 2,      
+//                                 4};
+//     std::vector<int> splits = {0, 4, 6, 9, 10};
+//     std::vector<int> token_pairs = {
+//         4*vocab_size + 2, // 5
+//         1*vocab_size + 5, // 6
+//         0*vocab_size + 6, // 7
+//     };
+//     struct tokenizeResult res = tokenize(&test[0], test.size(), &splits[0], splits.size(), &token_pairs[0], token_pairs.size(), vocab_size, 5);
+//     printf("Result:");
+//     for (size_t i = 0; i < res.ids_size; i++)
+//     {
+//         printf("%d ", res.ids[i]);
+//     }
+//     return 0;
+// }
 
 // int main() {
 //     srand(time(NULL)); // Seed for random number generation
