@@ -460,28 +460,6 @@ struct tokenizeResult{
     int *result;
 };
 
-void merge(std::vector<uint16_t> &ids, uint16_t tok_1, uint16_t tok_2, uint16_t new_token){
-    // merges all pairs IN-PLACE
-    int i = 0;
-    int curr_append = 0;
-    while (i < ids.size()){
-        if (ids[i] == tok_1 && i < ids.size() - 1 && ids[i+1] == tok_2){
-            ids[curr_append] = new_token;
-            i += 2;
-        }
-        else{
-            ids[curr_append] = ids[i];
-            i += 1;
-        }
-        curr_append++;
-    }
-    int to_pop = ids.size()-curr_append;
-    for (size_t i = 0; i < to_pop; i++)
-    {
-        ids.pop_back();
-    }
-}
-
 void printVector(const std::vector<uint16_t>& vec) {
     for (int value : vec) {
         std::cout << value << " ";
@@ -504,6 +482,7 @@ void printVector(const std::vector<struct tokenStat>& vec) {
 void _tokenizeChunk(std::vector<uint16_t> &ids, std::unordered_map<int, uint16_t> &pair_to_tok, int vocab_size){
     // tokenizes a chunk in-place
     std::vector<struct tokenStat> stats; // Vector of struct stat
+    stats.reserve(ids.size()); // <- test later for performance
     for (size_t i = 0; i < ids.size()-1; i++)
     {
         uint16_t t_1 = ids[i];
@@ -593,17 +572,21 @@ extern "C"{
  */
     void tokenize(uint8_t *ids, int num_ids, int *splits, int len_splits, int *token_pairs, int token_pairs_count, int vocab_size, int init_tokens){
         // splits denote the places where the string got splitted by regex
-        std::vector<std::vector<uint16_t>> splitted(len_splits);
+        std::vector<std::vector<uint16_t>> splitted;
+        splitted.reserve(len_splits);
         for (size_t i = 0; i < len_splits-1; i++)
         {
             int curr = splits[i];
             int next = splits[i+1];
-            std::vector<uint16_t> chunk(next-curr);
+            std::vector<uint16_t> chunk;
+            chunk.reserve(next-curr);
             for (size_t j = curr; j < next; j++)
             {
-                chunk.push_back((uint16_t)ids[j]);
+                chunk.emplace_back((uint16_t)ids[j]);
             }
+            splitted.emplace_back(chunk);
         }
+        
         std::unordered_map<int, uint16_t> pair_to_token(token_pairs_count);
         for (size_t i = 0; i < token_pairs_count; i++)
         {
@@ -614,8 +597,15 @@ extern "C"{
 
 
 int main() {
-    printf("end\n");
-    printVector(test);
+    int vocab_size = 10;
+    std::vector<uint8_t> test = {0, 1, 4, 2, 4, 1, 3, 4, 2, 4};
+    std::vector<int> splits = {0, 4, 6, 9, 10};
+    std::vector<int> token_pairs = {
+        4*vocab_size + 2, // 5
+        1*vocab_size + 5, // 6
+        0*vocab_size + 6, // 7
+    };
+    tokenize(&test[0], test.size(), &splits[0], splits.size(), &token_pairs[0], token_pairs.size(), vocab_size, 5);
     return 0;
 }
 
