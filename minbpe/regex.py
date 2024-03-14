@@ -110,11 +110,39 @@ class RegexTokenizer(Tokenizer):
                 part_bytes.append(self.inverse_special_tokens[idx].encode("utf-8"))
             else:
                 raise ValueError(f"invalid token id: {idx}")
-        print(part_bytes)
         text_bytes = b"".join(part_bytes)
         text = text_bytes.decode("utf-8", errors="replace")
         return text
 
+    def encode_ordinary(self, text):
+        """Encoding that ignores any special tokens."""
+        # split text into chunks of text by categories defined in regex pattern
+        text_chunks = re.findall(self.compiled_pattern, text)
+        # all chunks of text are encoded separately, then results are joined
+        ids = []
+        for chunk in text_chunks:
+            chunk_bytes = chunk.encode("utf-8") # raw bytes
+            chunk_ids = self._encode_chunk(chunk_bytes)
+            ids.extend(chunk_ids)
+        return ids
+
+    def encode(self, text):
+        # encode text:
+        ids = list(text.encode("utf-8"))
+        # find all occurences in ids by index:
+        text_chunks = re.findall(self.compiled_pattern, text)
+        split_indices = [0]*(len(text_chunks)+1)
+        curr_el = 0
+        i = 0
+        for el in text_chunks:
+            split_indices[i] = curr_el
+            curr_el += len(list(el.encode("utf-8")))
+            i += 1
+        split_indices[-1] = len(ids)
+        # call c++ function:
+        result = tokenizeFast(ids, split_indices, self.merges, self.vocab_size, self.init_tokens)
+        return result
+    
     def _encode_chunk(self, text_bytes):
         # return the token ids
         # let's begin. first, convert all bytes to integers in range 0..255
@@ -133,26 +161,7 @@ class RegexTokenizer(Tokenizer):
             idx = self.merges[pair]
             ids = merge(ids, pair, idx)
         return ids
-
-    def encode_ordinary(self, text):
-        """Encoding that ignores any special tokens."""
-        # split text into chunks of text by categories defined in regex pattern
-        text_chunks = re.findall(self.compiled_pattern, text)
-        # all chunks of text are encoded separately, then results are joined
-        ids = []
-        for chunk in text_chunks:
-            chunk_bytes = chunk.encode("utf-8") # raw bytes
-            chunk_ids = self._encode_chunk(chunk_bytes)
-            ids.extend(chunk_ids)
-        return ids
-
-    def encode(self, text):
-        split_indices = [m.start(0) for m in re.finditer(self.compiled_pattern, text)]
-        ids = list(text.encode("utf-8"))
-        ids.append(len(text))
-        result = tokenizeFast(ids, split_indices, self.merges, self.vocab_size, self.init_tokens)
-        return result
-
+    
     def encodeSlow(self, text, allowed_special="none_raise"):
         """
         Unlike encode_ordinary, this function handles special tokens.

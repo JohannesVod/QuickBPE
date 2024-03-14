@@ -660,7 +660,7 @@ extern "C"{
 //     }
 
 //     int tok_num_ids = 100000000;
-//     int *ids_tok = (int *)malloc(tok_num_ids * sizeof(int));
+//     uint8_t *ids_tok = (uint8_t *)malloc(tok_num_ids * sizeof(uint8_t));
 
 //     // Fill array with random numbers from 1 to 255
 //     for (int i = 0; i < tok_num_ids; i++) {
