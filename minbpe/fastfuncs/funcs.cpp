@@ -570,7 +570,7 @@ extern "C"{
  * @return A pointer to an array of integers representing the tokenized text.
  *         This array needs to be freed after use.
  */
-    void tokenize(uint8_t *ids, int num_ids, int *splits, int len_splits, int *token_pairs, int token_pairs_count, int vocab_size, int init_tokens){
+    uint16_t *tokenize(uint8_t *ids, int num_ids, int *splits, int len_splits, int *token_pairs, int token_pairs_count, int vocab_size, int init_tokens){
         // splits denote the places where the string got splitted by regex
         std::vector<std::vector<uint16_t>> splitted;
         splitted.reserve(len_splits);
@@ -592,6 +592,25 @@ extern "C"{
         {
             pair_to_token[token_pairs[i]] = (uint16_t)(init_tokens + i);
         }
+
+        int total_size = 0;
+        for (size_t i = 0; i < splitted.size(); i++)
+        {
+            _tokenizeChunk(splitted[i], pair_to_token, vocab_size);
+            total_size += splitted[i].size();
+        }
+
+        uint16_t *result = (uint16_t*)(sizeof(uint16_t)*total_size);
+        int c = 0;
+        for (size_t i = 0; i < splitted.size(); i++)
+        {
+            for (size_t j = 0; j < splitted[i].size(); j++)
+            {
+                result[c] = splitted[i][j];
+                c++;
+            }
+        }
+        return result;
     }
 }
 
