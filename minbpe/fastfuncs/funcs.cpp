@@ -614,7 +614,6 @@ extern "C"{
     }
 }
 
-
 int main() {
     int vocab_size = 10;
     std::vector<uint8_t> test = {0, 1, 4, 2, 4, 1, 3, 4, 2, 4};
