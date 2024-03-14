@@ -8,6 +8,7 @@
 #include <time.h>
 #include <chrono>
 #include <algorithm>
+#include <iostream>
 
 struct LinkedList {
     int *data;
@@ -326,8 +327,6 @@ void RemovePosition(heap *h, int index, int tok_1, int tok_2, int disallowed){
     decreaseKey(h, h->pairPositions[pair_index], new_len);
 }
 
-
-
 void AddPosition(heap *h, int index, int tok_1, int tok_2){
     // index denotes the start position of the pair inside the linked list
     if (tok_1 <= 0 || tok_2 <= 0){ // ignore if separated by 0 or out of bound
@@ -456,36 +455,126 @@ struct Token* train(int* ids, int num_ids, int num_tokens, int init_tokens) {
 }
 }
 
-void RemovePositionFromPairs(std::unordered_map<int, std::unique_ptr<std::unordered_set<int>>> &pair_sets, 
-                            int index, int tok_1, int tok_2, int vocab_size) {
-    if (tok_1 <= 0 || tok_2 <= 0) { // ignore if separated by 0 or out of bound
-        return;
-    }
-    int pair_index = tok_1 * vocab_size + tok_2;
-    auto& pairSet = pair_sets[pair_index];
-    pairSet->erase(index);
-}
-
-void AddPositionToPairs(std::unordered_map<int, std::unique_ptr<std::unordered_set<int>>> &pair_sets, 
-                        int index, int tok_1, int tok_2, int vocab_size) {
-    if (tok_1 <= 0 || tok_2 <= 0) { // ignore if separated by 0 or out of bound
-        return;
-    }
-    int pair_index = tok_1 * vocab_size + tok_2;
-    if (pair_sets.find(pair_index) == pair_sets.end()) {
-        // if not added yet (unseen pair), add it to the corresponding set
-        pair_sets[pair_index] = std::make_unique<std::unordered_set<int>>();
-    }
-    auto& pairSet = *pair_sets[pair_index];
-    pairSet.insert(index);
-}
-
 struct tokenizeResult{
     int length;
     int *result;
 };
 
-// Custom hash function and precreation of sets
+void merge(std::vector<uint16_t> &ids, uint16_t tok_1, uint16_t tok_2, uint16_t new_token){
+    // merges all pairs IN-PLACE
+    int i = 0;
+    int curr_append = 0;
+    while (i < ids.size()){
+        if (ids[i] == tok_1 && i < ids.size() - 1 && ids[i+1] == tok_2){
+            ids[curr_append] = new_token;
+            i += 2;
+        }
+        else{
+            ids[curr_append] = ids[i];
+            i += 1;
+        }
+        curr_append++;
+    }
+    int to_pop = ids.size()-curr_append;
+    for (size_t i = 0; i < to_pop; i++)
+    {
+        ids.pop_back();
+    }
+}
+
+void printVector(const std::vector<uint16_t>& vec) {
+    for (int value : vec) {
+        std::cout << value << " ";
+    }
+    std::cout << std::endl;
+}
+
+struct tokenStat{
+    int pair_id;
+    int tok_id;
+};
+
+void printVector(const std::vector<struct tokenStat>& vec) {
+    for (auto &value : vec) {
+        std::cout << value.tok_id << " ";
+    }
+    std::cout << std::endl;
+}
+
+void _tokenizeChunk(std::vector<uint16_t> &ids, std::unordered_map<int, uint16_t> &pair_to_tok, int vocab_size){
+    // tokenizes a chunk in-place
+    std::vector<struct tokenStat> stats; // Vector of struct stat
+    for (size_t i = 0; i < ids.size()-1; i++)
+    {
+        uint16_t t_1 = ids[i];
+        uint16_t t_2 = ids[i+1];
+        int key = t_1 * vocab_size + t_2;
+        if (pair_to_tok.find(key) != pair_to_tok.end()){
+            // Construct a struct stat and push it into the vector
+            stats.push_back({key, pair_to_tok[key]});
+        }
+    }
+    
+    // merge and recalculate stats while merging
+    while (stats.size() > 0){
+        // find the first pair that has to be swapped:
+        int min_tok_id = -1;
+        int min_pair_id = -1;
+        for (size_t i = 0; i < stats.size(); i++)
+        {
+            if (stats[i].tok_id < min_tok_id || min_tok_id == -1){
+                min_tok_id = stats[i].tok_id;
+                min_pair_id = stats[i].pair_id;
+            }
+        }
+        // delete every occurrence of the min pair:
+        for (size_t i = 0; i < stats.size(); i++)
+        {
+            if (stats[i].tok_id == min_tok_id){
+                // delete element:
+                stats[i].tok_id = stats[stats.size()-1].tok_id;
+                stats[i].pair_id = stats[stats.size()-1].pair_id;
+                stats.pop_back(); // resize stats
+                i--; // last element might also be min_tok_id
+            }
+        }
+        int tok_1 = (int)(min_pair_id / vocab_size);
+        int tok_2 = min_pair_id % vocab_size;
+        // merge every occurrence:
+        int i = 0;
+        int curr_append = 0;
+        int prev = -1;
+        while (i < ids.size()){
+            if (ids[i] == tok_1 && i < ids.size() - 1 && ids[i+1] == tok_2){
+                ids[curr_append] = min_tok_id;
+                i += 2;
+                if (prev != -1){
+                    int pair_id = prev*vocab_size + ids[curr_append];
+                    if (pair_to_tok.find(pair_id) != pair_to_tok.end()){
+                        stats.push_back({pair_id, pair_to_tok[pair_id]});
+                    }
+                }
+            }
+            else{
+                ids[curr_append] = ids[i];
+                i += 1;
+            }
+            if (prev == min_tok_id && ids[curr_append] != min_tok_id){
+                int pair_id = prev*vocab_size + ids[curr_append];
+                if (pair_to_tok.find(pair_id) != pair_to_tok.end()){
+                    stats.push_back({pair_id, pair_to_tok[pair_id]});
+                }
+            }
+            prev = ids[curr_append];
+            curr_append++;
+        }
+        int to_pop = ids.size()-curr_append;
+        for (size_t i = 0; i < to_pop; i++)
+        {
+            ids.pop_back();
+        }
+    }
+}
 
 extern "C"{
 /**
@@ -502,120 +591,32 @@ extern "C"{
  * @return A pointer to an array of integers representing the tokenized text.
  *         This array needs to be freed after use.
  */
-struct tokenizeResult tokenize2(int *ids, int num_ids, int *token_pairs, int token_pairs_count, int vocab_size, int init_tokens){
-    struct LinkedList list = createLinkedList(ids, num_ids);
-    std::unordered_map<int, std::unique_ptr<std::unordered_set<int>>> pair_positions;
-    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-    std::unordered_set<int> test;
-
-    {
-        // performance improvement: store positions in vector first and then add to sets
-        std::vector<std::vector<int>> pair_positions_fast(init_tokens * init_tokens);
-        // count all pairs initially:
-        int last_added_index = 0;
-        int last_added_pair_index = -1;
-        for (int i = 0; i < num_ids-1; i++){
-            int first_el = ids[i];
-            int second_el = ids[i + 1];
-            int index = first_el*init_tokens + second_el;
-            pair_positions_fast[index].push_back(i);
-            last_added_index = i;
-            last_added_pair_index = index;
-        }
-        for (size_t i = 0; i < init_tokens * init_tokens; i++)
+    void tokenize(uint8_t *ids, int num_ids, int *splits, int len_splits, int *token_pairs, int token_pairs_count, int vocab_size, int init_tokens){
+        // splits denote the places where the string got splitted by regex
+        std::vector<std::vector<uint16_t>> splitted(len_splits);
+        for (size_t i = 0; i < len_splits-1; i++)
         {
-            int tok_1 = (int)i/init_tokens;
-            int tok_2 = i%init_tokens;
-            int real_index = tok_1*vocab_size + tok_2;
-            pair_positions[real_index] = std::make_unique<std::unordered_set<int>>(pair_positions_fast[i].size());
-            // insertion is much faster here because the array of the hashmap is loaded into cache:
-            for (size_t j = 0; j < pair_positions_fast[i].size(); j++)
+            int curr = splits[i];
+            int next = splits[i+1];
+            std::vector<uint16_t> chunk(next-curr);
+            for (size_t j = curr; j < next; j++)
             {
-                pair_positions[real_index]->insert(pair_positions_fast[i][j]);
+                chunk.push_back((uint16_t)ids[j]);
             }
         }
-    }
-    
-    for (size_t i = 0; i < token_pairs_count; i++)
-    {
-        int curr_pair = token_pairs[i];
-        if (pair_positions.find(curr_pair) == pair_positions.end()){
-            continue;
-        }
-        int tok_1 = (int)curr_pair/vocab_size;
-        int tok_2 = curr_pair%vocab_size;
-        auto& pairSet = pair_positions[curr_pair];
-        std::vector<int> sortedPositions;
-        for (auto it = pairSet->begin(); it != pairSet->end(); ++it) {
-            sortedPositions.push_back(*it);
-        }
-        std::sort(sortedPositions.begin(), sortedPositions.end()); // make sure to iterate in sorted order
-        int last_added_index = -1;
-        int new_token_id = init_tokens + i;
-
-        for (auto& pos : sortedPositions)  {
-            if (pos == last_added_index){ // needed for repeating tokens
-                continue; 
-            }
-            // pos = position inside the linked list
-            int w1 = list.data[pos];
-            int w1_prev_ind = getPrevIndex(&list, pos);
-            int w1_prev = -1;
-            if (w1_prev_ind != -1){
-                w1_prev = list.data[w1_prev_ind];
-            }
-            int w2_ind = getNextIndex(&list, pos);
-            int w2 = list.data[w2_ind]; // has to exist, otherwise we made a mistake
-            int w2_next = getNextElement(&list, w2_ind);
-            RemovePositionFromPairs(pair_positions, w1_prev_ind, w1_prev, w1, vocab_size);
-            RemovePositionFromPairs(pair_positions, w2_ind, w2, w2_next, vocab_size);
-            int next_id = getNextIndex(&list, pos);
-            // merge tokens to create new token:
-            deleteElement(&list, next_id);
-            updateElement(&list, pos, new_token_id);
-            // add new pairs:
-            AddPositionToPairs(pair_positions, pos, new_token_id, w2_next, vocab_size);
-            AddPositionToPairs(pair_positions, w1_prev_ind, w1_prev, new_token_id, vocab_size);
-            last_added_index = next_id;
-        }
-    }
-
-    int *result = (int *)malloc(list.size*sizeof(int));
-    int curr = getNextIndex(&list, -1);
-    int curr_ind = 0;
-    while (curr != -1){
-        int el_data = list.data[curr];
-        if (list.data[curr] != 0){
-            result[curr_ind] = list.data[curr];
-            curr_ind++;
-        }
-        curr = getNextIndex(&list, curr);
-    }
-    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-    printf("time taken: %d milliseconds\n", std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count());
-    return tokenizeResult{curr_ind, result};
-}
-}
-
-std::vector<int> merge(std::vector<int> &ids, int tok_1, int tok_2){
-    
-}
-
-struct tokenizeResult tokenize(int *ids, int num_ids, int *splits, int len_splits, int *token_pairs, int token_pairs_count, int vocab_size, int init_tokens){
-    // splits denote the places where the string got splitted by regex
-    std::vector<std::vector<int>> splitted(len_splits);
-    for (size_t i = 0; i < len_splits-1; i++)
-    {
-        int curr = splits[i];
-        int next = splits[i+1];
-        std::vector<int> chunk(next-curr);
-        for (size_t j = curr; j < next; j++)
+        std::unordered_map<int, uint16_t> pair_to_token(token_pairs_count);
+        for (size_t i = 0; i < token_pairs_count; i++)
         {
-            chunk.push_back(ids[j]);
+            pair_to_token[token_pairs[i]] = (uint16_t)(init_tokens + i);
         }
     }
+}
 
 
+int main() {
+    printf("end\n");
+    printVector(test);
+    return 0;
 }
 
 // int main() {
