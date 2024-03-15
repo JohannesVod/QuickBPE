@@ -115,12 +115,12 @@ class RegexTokenizer(Tokenizer):
         text = text_bytes.decode("utf-8", errors="replace")
         return text
 
-    def encode_ordinary_fast(self, text):
+    def encode_ordinary(self, text):
         # encode text. use np because much faster (thanks chatgpt):
         ids = np.frombuffer(text.encode('utf-8'), dtype=np.uint8)
         # find all occurences in ids by index:
         text_chunks = re.findall(self.compiled_pattern, text) # slowest operation
-        split_indices = [0]*(len(text_chunks)+1)
+        split_indices = np.zeros(len(text_chunks) + 1, dtype=np.int32)
         curr_el = 0
         i = 0
         for el in text_chunks:
@@ -131,39 +131,8 @@ class RegexTokenizer(Tokenizer):
         # call c++ function:
         result = tokenizeFast(ids, split_indices, self.merges, self.vocab_size, self.init_tokens)
         return result
-    
-    def _encode_chunk(self, text_bytes):
-        # return the token ids
-        # let's begin. first, convert all bytes to integers in range 0..255
-        ids = list(text_bytes)
-        while len(ids) >= 2:
-            # find the pair with the lowest merge index
-            stats = get_stats(ids)
-            pair = min(stats, key=lambda p: self.merges.get(p, float("inf")))
-            # subtle: if there are no more merges available, the key will
-            # result in an inf for every single pair, and the min will be
-            # just the first pair in the list, arbitrarily
-            # we can detect this terminating case by a membership check
-            if pair not in self.merges:
-                break # nothing else can be merged anymore
-            # otherwise let's merge the best pair (lowest merge index)
-            idx = self.merges[pair]
-            ids = merge(ids, pair, idx)
-        return ids
 
-    def encode_ordinary(self, text):
-        """Encoding that ignores any special tokens."""
-        # split text into chunks of text by categories defined in regex pattern
-        text_chunks = re.findall(self.compiled_pattern, text)
-        # all chunks of text are encoded separately, then results are joined
-        ids = []
-        for chunk in text_chunks:
-            chunk_bytes = chunk.encode("utf-8") # raw bytes
-            chunk_ids = self._encode_chunk(chunk_bytes)
-            ids.extend(chunk_ids)
-        return ids
-
-    def encodeSlow(self, text, allowed_special="none_raise"):
+    def encode(self, text, allowed_special="none_raise"):
         """
         Unlike encode_ordinary, this function handles special tokens.
         allowed_special: can be "all"|"none"|"none_raise" or a custom set of special tokens

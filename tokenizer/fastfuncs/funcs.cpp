@@ -646,26 +646,26 @@ extern "C"{
     }
 }
 
-int main() {
-    int vocab_size = 10;
-    std::vector<uint8_t> test = {0, 1, 4, 2,
-                                4, 1,      
-                                1, 4, 2,      
-                                4};
-    std::vector<int> splits = {0, 4, 6, 9, 10};
-    std::vector<int> token_pairs = {
-        4*vocab_size + 2, // 5
-        1*vocab_size + 5, // 6
-        0*vocab_size + 6, // 7
-    };
-    struct tokenizeResult res = tokenize(&test[0], test.size(), &splits[0], splits.size(), &token_pairs[0], token_pairs.size(), vocab_size, 5, 4);
-    printf("Result:");
-    for (size_t i = 0; i < res.ids_size; i++)
-    {
-        printf("%d ", res.ids[i]);
-    }
-    return 0;
-}
+// int main() {
+//     int vocab_size = 10;
+//     std::vector<uint8_t> test = {0, 1, 4, 2,
+//                                 4, 1,      
+//                                 1, 4, 2,      
+//                                 4};
+//     std::vector<int> splits = {0, 4, 6, 9, 10};
+//     std::vector<int> token_pairs = {
+//         4*vocab_size + 2, // 5
+//         1*vocab_size + 5, // 6
+//         0*vocab_size + 6, // 7
+//     };
+//     struct tokenizeResult res = tokenize(&test[0], test.size(), &splits[0], splits.size(), &token_pairs[0], token_pairs.size(), vocab_size, 5, 4);
+//     printf("Result:");
+//     for (size_t i = 0; i < res.ids_size; i++)
+//     {
+//         printf("%d ", res.ids[i]);
+//     }
+//     return 0;
+// }
 
 // int main() {
 //     srand(time(NULL)); // Seed for random number generation

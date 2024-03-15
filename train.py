@@ -17,10 +17,12 @@ for TokenizerClass, name in zip([RegexTokenizer], ["regex"]):
     vocab_size = 10000
     init_vocab_size = 256
     merges, vocab = tokenizer.train(text[:100000], vocab_size, init_vocab_size)
-    encoded = tokenizer.encode_ordinary_fast(text)
+    text = "?"
+    encoded = tokenizer.encode(text)
+    decoded = tokenizer.decode(encoded)
     #encoded_2 = tokenizer.encode_ordinary(text)
     #assert encoded == encoded_2
-    print("compression:", f"{round(100*len(encoded)/len(text), 2)}%")
+    print("compressed to:", f"{round(100*len(encoded)/len(text.encode('utf-8')), 2)}%")
     # tokenizer.decode(encoded)
     # tokenizer.checkSolution(text, vocab_size, merges1, vocab1, init_vocab_size)
     # print("check successful!")
