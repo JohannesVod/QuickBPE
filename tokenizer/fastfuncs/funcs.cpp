@@ -489,7 +489,7 @@ void _tokenizeChunk(std::vector<uint16_t> &ids, std::unordered_map<int, uint16_t
             stats.push_back({key, pair_to_tok[key]});
         }
     }
-    
+
     // merge and recalculate stats while merging
     while (stats.size() > 0){
         // find the first pair that has to be swapped:
@@ -596,11 +596,11 @@ extern "C"{
         {
             pair_to_token[token_pairs[i]] = (uint16_t)(init_tokens + i);
         }
-
+        
         // Vector to store threads
         std::vector<std::thread> threads;
 
-        // Function to be executed by each thread
+                // Function to be executed by each thread
         auto tokenizeChunksThread = [&](size_t start, size_t end) {
             for (size_t i = start; i < end; i++) {
                 _tokenizeChunk(splitted[i], pair_to_token, vocab_size);
@@ -614,21 +614,19 @@ extern "C"{
         for (size_t i = 0; i < num_threads - 1; i++) {
             threads.emplace_back(tokenizeChunksThread, i * chunkSize, (i + 1) * chunkSize);
         }
-
         // Last thread handles remaining chunks
         threads.emplace_back(tokenizeChunksThread, (num_threads - 1) * chunkSize, splitted.size());
-
         // Join threads
         for (auto& thread : threads) {
             thread.join();
         }
-
+        
         int total_size = 0;
         for (size_t i = 0; i < splitted.size(); i++)
         {
             total_size += splitted[i].size();
         }
-
+        
         uint16_t *result = (uint16_t*)malloc(sizeof(uint16_t)*total_size);
         int c = 0;
         for (size_t i = 0; i < splitted.size(); i++)
@@ -647,23 +645,23 @@ extern "C"{
 }
 
 // int main() {
-//     int vocab_size = 10;
+    //     int vocab_size = 10;
 //     std::vector<uint8_t> test = {0, 1, 4, 2,
 //                                 4, 1,      
 //                                 1, 4, 2,      
 //                                 4};
 //     std::vector<int> splits = {0, 4, 6, 9, 10};
-//     std::vector<int> token_pairs = {
-//         4*vocab_size + 2, // 5
+    //     std::vector<int> token_pairs = {
+        //         4*vocab_size + 2, // 5
 //         1*vocab_size + 5, // 6
 //         0*vocab_size + 6, // 7
 //     };
-//     struct tokenizeResult res = tokenize(&test[0], test.size(), &splits[0], splits.size(), &token_pairs[0], token_pairs.size(), vocab_size, 5, 4);
-//     printf("Result:");
-//     for (size_t i = 0; i < res.ids_size; i++)
-//     {
+    //     struct tokenizeResult res = tokenize(&test[0], test.size(), &splits[0], splits.size(), &token_pairs[0], token_pairs.size(), vocab_size, 5, 4);
+    //     printf("Result:");
+    //     for (size_t i = 0; i < res.ids_size; i++)
+    //     {
 //         printf("%d ", res.ids[i]);
-//     }
+    //     }
 //     return 0;
 // }
 
