@@ -1,7 +1,7 @@
 
 import os
 import time
-from minbpe import RegexTokenizer
+from tokenizer import RegexTokenizer
 
 # open some text and train a vocab of 512 tokens
 text = open("tests/taylorswift.txt", "r", encoding="utf-8").read()
@@ -17,9 +17,9 @@ for TokenizerClass, name in zip([RegexTokenizer], ["regex"]):
     vocab_size = 10000
     init_vocab_size = 256
     merges, vocab = tokenizer.train(text[:100000], vocab_size, init_vocab_size)
-    encoded = tokenizer.encode(text)
-    # encoded_2 = tokenizer.encode_ordinary(text)
-    # assert encoded == encoded_2
+    encoded = tokenizer.encode_ordinary_fast(text)
+    #encoded_2 = tokenizer.encode_ordinary(text)
+    #assert encoded == encoded_2
     print("compression:", f"{round(100*len(encoded)/len(text), 2)}%")
     # tokenizer.decode(encoded)
     # tokenizer.checkSolution(text, vocab_size, merges1, vocab1, init_vocab_size)

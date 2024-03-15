@@ -12,6 +12,8 @@ Unlike BasicTokenizer:
 import regex as re
 from .fastfuncs.funcs import trainFast, tokenizeFast
 from .base import Tokenizer, get_stats, merge
+import numpy as np
+import time 
 
 # the main GPT text split patterns, see
 # https://github.com/openai/tiktoken/blob/main/tiktoken_ext/openai_public.py
@@ -19,7 +21,6 @@ GPT2_SPLIT_PATTERN = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}
 GPT4_SPLIT_PATTERN = r"""'(?i:[sdmt]|ll|ve|re)|[^\r\n\p{L}\p{N}]?+\p{L}+|\p{N}{1,3}| ?[^\s\p{L}\p{N}]++[\r\n]*|\s*[\r\n]|\s+(?!\S)|\s+"""
 
 class RegexTokenizer(Tokenizer):
-
     def __init__(self, pattern=None):
         """
         - pattern: optional string to override the default (GPT-4 split pattern)
@@ -35,6 +36,7 @@ class RegexTokenizer(Tokenizer):
         self.init_tokens = 0
 
     def presplit(self, text):
+        # "splits" the text by adding 0 as padding between the tokens
         text_chunks = re.findall(self.compiled_pattern, text)
         # input text preprocessing
         ids = [list(ch.encode("utf-8")) for ch in text_chunks]
@@ -55,7 +57,6 @@ class RegexTokenizer(Tokenizer):
         assert vocab_size >= init_tokens
         self.vocab_size = vocab_size
         self.init_tokens = init_tokens
-        # split the text up into text chunks
         id_list = self.presplit(text)
         self.merges, self.vocab =  trainFast(id_list, vocab_size, init_tokens)
         return self.merges, self.vocab
@@ -114,23 +115,11 @@ class RegexTokenizer(Tokenizer):
         text = text_bytes.decode("utf-8", errors="replace")
         return text
 
-    def encode_ordinary(self, text):
-        """Encoding that ignores any special tokens."""
-        # split text into chunks of text by categories defined in regex pattern
-        text_chunks = re.findall(self.compiled_pattern, text)
-        # all chunks of text are encoded separately, then results are joined
-        ids = []
-        for chunk in text_chunks:
-            chunk_bytes = chunk.encode("utf-8") # raw bytes
-            chunk_ids = self._encode_chunk(chunk_bytes)
-            ids.extend(chunk_ids)
-        return ids
-
-    def encode(self, text):
-        # encode text:
-        ids = list(text.encode("utf-8"))
+    def encode_ordinary_fast(self, text):
+        # encode text. use np because much faster (thanks chatgpt):
+        ids = np.frombuffer(text.encode('utf-8'), dtype=np.uint8)
         # find all occurences in ids by index:
-        text_chunks = re.findall(self.compiled_pattern, text)
+        text_chunks = re.findall(self.compiled_pattern, text) # slowest operation
         split_indices = [0]*(len(text_chunks)+1)
         curr_el = 0
         i = 0
@@ -161,7 +150,19 @@ class RegexTokenizer(Tokenizer):
             idx = self.merges[pair]
             ids = merge(ids, pair, idx)
         return ids
-    
+
+    def encode_ordinary(self, text):
+        """Encoding that ignores any special tokens."""
+        # split text into chunks of text by categories defined in regex pattern
+        text_chunks = re.findall(self.compiled_pattern, text)
+        # all chunks of text are encoded separately, then results are joined
+        ids = []
+        for chunk in text_chunks:
+            chunk_bytes = chunk.encode("utf-8") # raw bytes
+            chunk_ids = self._encode_chunk(chunk_bytes)
+            ids.extend(chunk_ids)
+        return ids
+
     def encodeSlow(self, text, allowed_special="none_raise"):
         """
         Unlike encode_ordinary, this function handles special tokens.

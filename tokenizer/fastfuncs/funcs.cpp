@@ -9,6 +9,7 @@
 #include <chrono>
 #include <algorithm>
 #include <iostream>
+#include <thread>
 
 struct LinkedList {
     int *data;
@@ -572,7 +573,8 @@ extern "C"{
  * @return A pointer to an array of integers representing the tokenized text.
  *         This array needs to be freed after use.
  */
-    struct tokenizeResult tokenize(uint8_t *ids, int num_ids, int *splits, int len_splits, int *token_pairs, int token_pairs_count, int vocab_size, int init_tokens){
+    struct tokenizeResult tokenize(uint8_t *ids, int num_ids, int *splits, int len_splits, int *token_pairs, int token_pairs_count, int vocab_size, int init_tokens, int num_threads){
+        auto start = std::chrono::steady_clock::now(); // Record start time
         // splits denote the places where the string got splitted by regex
         std::vector<std::vector<uint16_t>> splitted;
         splitted.reserve(len_splits);
@@ -595,10 +597,35 @@ extern "C"{
             pair_to_token[token_pairs[i]] = (uint16_t)(init_tokens + i);
         }
 
+        // Vector to store threads
+        std::vector<std::thread> threads;
+
+        // Function to be executed by each thread
+        auto tokenizeChunksThread = [&](size_t start, size_t end) {
+            for (size_t i = start; i < end; i++) {
+                _tokenizeChunk(splitted[i], pair_to_token, vocab_size);
+            }
+        };
+
+        // Calculate chunk size based on the number of threads
+        size_t chunkSize = splitted.size() / num_threads;
+
+        // Create threads
+        for (size_t i = 0; i < num_threads - 1; i++) {
+            threads.emplace_back(tokenizeChunksThread, i * chunkSize, (i + 1) * chunkSize);
+        }
+
+        // Last thread handles remaining chunks
+        threads.emplace_back(tokenizeChunksThread, (num_threads - 1) * chunkSize, splitted.size());
+
+        // Join threads
+        for (auto& thread : threads) {
+            thread.join();
+        }
+
         int total_size = 0;
         for (size_t i = 0; i < splitted.size(); i++)
         {
-            _tokenizeChunk(splitted[i], pair_to_token, vocab_size);
             total_size += splitted[i].size();
         }
 
@@ -612,30 +639,33 @@ extern "C"{
                 c++;
             }
         }
+        auto end = std::chrono::steady_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+        std::cout << "Elapsed time inside tokenize function: " << duration.count() << " milliseconds" << std::endl;
         return tokenizeResult{result, total_size};
     }
 }
 
-// int main() {
-//     int vocab_size = 10;
-//     std::vector<uint8_t> test = {0, 1, 4, 2,
-//                                 4, 1,      
-//                                 1, 4, 2,      
-//                                 4};
-//     std::vector<int> splits = {0, 4, 6, 9, 10};
-//     std::vector<int> token_pairs = {
-//         4*vocab_size + 2, // 5
-//         1*vocab_size + 5, // 6
-//         0*vocab_size + 6, // 7
-//     };
-//     struct tokenizeResult res = tokenize(&test[0], test.size(), &splits[0], splits.size(), &token_pairs[0], token_pairs.size(), vocab_size, 5);
-//     printf("Result:");
-//     for (size_t i = 0; i < res.ids_size; i++)
-//     {
-//         printf("%d ", res.ids[i]);
-//     }
-//     return 0;
-// }
+int main() {
+    int vocab_size = 10;
+    std::vector<uint8_t> test = {0, 1, 4, 2,
+                                4, 1,      
+                                1, 4, 2,      
+                                4};
+    std::vector<int> splits = {0, 4, 6, 9, 10};
+    std::vector<int> token_pairs = {
+        4*vocab_size + 2, // 5
+        1*vocab_size + 5, // 6
+        0*vocab_size + 6, // 7
+    };
+    struct tokenizeResult res = tokenize(&test[0], test.size(), &splits[0], splits.size(), &token_pairs[0], token_pairs.size(), vocab_size, 5, 4);
+    printf("Result:");
+    for (size_t i = 0; i < res.ids_size; i++)
+    {
+        printf("%d ", res.ids[i]);
+    }
+    return 0;
+}
 
 // int main() {
 //     srand(time(NULL)); // Seed for random number generation

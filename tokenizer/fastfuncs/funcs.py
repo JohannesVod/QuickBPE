@@ -1,7 +1,8 @@
 import ctypes
 import os
-import struct
 import numpy as np
+import time 
+
 # Define the structure for the result tuple
 class Result(ctypes.Structure):
     _fields_ = [
@@ -31,17 +32,16 @@ funcs.tokenize.restype = TokenizeResult
 funcs.tokenize.argtypes = [ctypes.POINTER(ctypes.c_uint8), ctypes.c_int, 
                            ctypes.POINTER(ctypes.c_int), ctypes.c_int, 
                            ctypes.POINTER(ctypes.c_int), ctypes.c_int, 
-                           ctypes.c_int, ctypes.c_int]
+                           ctypes.c_int, ctypes.c_int, ctypes.c_int]
 
 def trainFast(ids, num_tokens, init_tokens=256):
     """
     trains on ids which are already separated 
     """
-    # Convert the input list to a C-style array
     ids_arr = (ctypes.c_int * len(ids))(*ids)
-    # Call the dummy_function#
+    # Call the c++ function:
     results_ptr = funcs.train(ids_arr, len(ids), num_tokens, init_tokens)
-    # Convert the results to a Python list of tuples
+    # Convert the results to a Python list of tuples:
     results = []
     for i in range(num_tokens):
         result = results_ptr[i]
@@ -56,14 +56,17 @@ def trainFast(ids, num_tokens, init_tokens=256):
         vocab[el[0]] = bytes(el[3])
     return merges, vocab
 
-def tokenizeFast(ids, split_indices, pairs, vocab_size, init_tokens):
+def tokenizeFast(ids, split_indices, pairs, vocab_size, init_tokens, threads=4):
     pairs = [pair[0] * vocab_size + pair[1] for pair in pairs]
     pairs_arr = (ctypes.c_int * len(pairs))(*pairs)
     splits_arr = (ctypes.c_int * len(split_indices))(*split_indices)
     pairs_ptr = ctypes.cast(pairs_arr, ctypes.POINTER(ctypes.c_int))
     splits_ptr = ctypes.cast(splits_arr, ctypes.POINTER(ctypes.c_int))
+    start = time.time()
     ids_arr = (ctypes.c_uint8 * len(ids))(*ids)
-    results_ptr = funcs.tokenize(ids_arr, len(ids), splits_ptr, len(split_indices), pairs_ptr, len(pairs), vocab_size, init_tokens)
+    print(end - start)
+    end = time.time()
+    results_ptr = funcs.tokenize(ids_arr, len(ids), splits_ptr, len(split_indices), pairs_ptr, len(pairs), vocab_size, init_tokens, threads)
     tokenized_text_size = results_ptr.length
     tokenized_text_buffer = (ctypes.c_uint16 * tokenized_text_size)()
     ctypes.memmove(tokenized_text_buffer, results_ptr.result, ctypes.sizeof(ctypes.c_uint16) * tokenized_text_size)
