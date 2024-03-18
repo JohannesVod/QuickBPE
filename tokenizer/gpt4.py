@@ -6,6 +6,7 @@ loads the pretrained tokenizer from the `cl100k_base` tokenizer of tiktoken.
 
 import tiktoken
 from .regex import RegexTokenizer
+import numpy as np
 
 
 def bpe(mergeable_ranks, token, max_rank):
@@ -83,6 +84,12 @@ class GPT4Tokenizer(RegexTokenizer):
         text_bytes = bytes(self.byte_shuffle[b] for b in text_bytes)
         ids = super()._encode_chunk(text_bytes)
         return ids
+
+    def encode_ordinary(self, text, ids=None):
+        text_bytes = text.encode("utf-8")
+        shuffled = bytes(self.byte_shuffle[b] for b in text_bytes)
+        ids = np.array(list(shuffled), dtype=np.uint8)
+        return super().encode_ordinary(text, ids)
 
     def decode(self, ids):
         # we have to un-permute the bytes before we decode

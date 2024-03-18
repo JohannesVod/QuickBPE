@@ -573,7 +573,8 @@ extern "C"{
  * @return A pointer to an array of integers representing the tokenized text.
  *         This array needs to be freed after use.
  */
-    struct tokenizeResult tokenize(uint8_t *ids, int num_ids, int *splits, int len_splits, int *token_pairs, int token_pairs_count, int vocab_size, int init_tokens, int num_threads){
+    struct tokenizeResult tokenize(uint8_t *ids, int num_ids, int *splits, int len_splits, int *token_pairs, int token_pairs_count, int init_tokens, int num_threads){
+        int vocab_size = token_pairs_count+init_tokens;
         auto start = std::chrono::steady_clock::now(); // Record start time
         // splits denote the places where the string got splitted by regex
         std::vector<std::vector<uint16_t>> splitted;

@@ -14,12 +14,12 @@ os.makedirs("models", exist_ok=True)
 for TokenizerClass, name in zip([RegexTokenizer], ["regex"]):
     # construct the Tokenizer object and kick off verbose training
     tokenizer = TokenizerClass()
-    vocab_size = 512
+    vocab_size = 270
     init_vocab_size = 256
     tokenizer.train(text[:10000], vocab_size, init_vocab_size)
     text = "hello world!!!? (안녕하세요!) lol123 😉"
     encoded = tokenizer.encode_ordinary(text)
-    encoded2 = tokenizer.encode_ordinaryFast(text)
+    encoded2 = tokenizer.encode_ordinary2(text)
     print(encoded, encoded2)
     assert encoded == encoded2
     print("compressed to:", f"{round(100*len(encoded)/len(text.encode('utf-8')), 2)}%")

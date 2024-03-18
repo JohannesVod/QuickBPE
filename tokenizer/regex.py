@@ -32,7 +32,7 @@ class RegexTokenizer(Tokenizer):
         self.compiled_pattern = re.compile(self.pattern)
         self.special_tokens = {}
         self.inverse_special_tokens = {}
-        self.vocab_size = 0
+        self.init_tokens = 256
 
     def presplit(self, text):
         # "splits" the text by adding 0 as padding between the tokens
@@ -53,9 +53,8 @@ class RegexTokenizer(Tokenizer):
         return id_list
 
     def train(self, text, vocab_size, verbose=False):
-        assert vocab_size >= 256
-        self.vocab_size = vocab_size
-        num_merges = vocab_size - 256
+        assert vocab_size >= self.init_tokens
+        num_merges = vocab_size - self.init_tokens
 
         # split the text up into text chunks
         text_chunks = re.findall(self.compiled_pattern, text)
@@ -65,7 +64,7 @@ class RegexTokenizer(Tokenizer):
 
         # iteratively merge the most common pairs to create new tokens
         merges = {} # (int, int) -> int
-        vocab = {idx: bytes([idx]) for idx in range(256)} # idx -> bytes
+        vocab = {idx: bytes([idx]) for idx in range(self.init_tokens)} # idx -> bytes
         for i in range(num_merges):
             # count the number of times every consecutive pair appears
             stats = {}
@@ -75,7 +74,7 @@ class RegexTokenizer(Tokenizer):
             # find the pair with the highest count
             pair = max(stats, key=stats.get)
             # mint a new token: assign it the next available id
-            idx = 256 + i
+            idx = self.init_tokens + i
             # replace all occurrences of pair in ids with idx
             ids = [merge(chunk_ids, pair, idx) for chunk_ids in ids]
             # save the merge
@@ -102,17 +101,17 @@ class RegexTokenizer(Tokenizer):
                 raise RuntimeError(f"At {curr_ind} we have as correct max pair: {max_pair} (with cost {max_count}). But our algorithm gave {suggested_max} with cost real cost {stats.get(suggested_max)}")
             return suggested_max
 
-        assert vocab_size >= 256
-        num_merges = vocab_size - 256
+        assert vocab_size >= self.init_tokens
+        num_merges = vocab_size - self.init_tokens
 
         # split the text up into text chunks
         text_chunks = re.findall(self.compiled_pattern, text)
         ids = [list(ch.encode("utf-8")) for ch in text_chunks]
 
         merges = {} # (int, int) -> int
-        vocab = {idx: bytes([idx]) for idx in range(256)} # idx -> bytes
+        vocab = {idx: bytes([idx]) for idx in range(self.init_tokens)} # idx -> bytes
         for i in range(num_merges):
-            idx = 256 + i
+            idx = self.init_tokens + i
             stats = {}
             for chunk_ids in ids:
                 get_stats(chunk_ids, stats)
@@ -174,9 +173,10 @@ class RegexTokenizer(Tokenizer):
             ids.extend(chunk_ids)
         return ids
 
-    def encode_ordinary(self, text):
+    def encode_ordinary(self, text, ids=None):
         # encode text. use np because much faster (thanks chatgpt):
-        ids = np.frombuffer(text.encode('utf-8'), dtype=np.uint8)
+        if ids is None:
+            ids = np.frombuffer(text.encode('utf-8'), dtype=np.uint8)
         # find all occurences in ids by index:
         text_chunks = re.findall(self.compiled_pattern, text) # slowest operation
         split_indices = np.zeros(len(text_chunks) + 1, dtype=np.int32)
@@ -188,7 +188,7 @@ class RegexTokenizer(Tokenizer):
             i += 1
         split_indices[-1] = len(ids)
         # call c++ function:
-        result = tokenizeFast(ids, split_indices, self.merges, self.vocab_size, 256)
+        result = tokenizeFast(ids, split_indices, self.merges, self.init_tokens)
         return result
 
     def encode(self, text, allowed_special="none_raise"):
