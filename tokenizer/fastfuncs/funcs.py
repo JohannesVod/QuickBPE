@@ -57,7 +57,7 @@ def trainFast(ids, num_tokens, init_tokens=256):
         vocab[el[0]] = bytes(el[3])
     return merges, vocab
 
-def tokenizeFast(ids, split_indices, merges, init_tokens, threads=1):
+def tokenizeFast(ids, split_indices, merges, init_tokens, threads=4):
     vocab_size = len(merges)+init_tokens
     merges_l = [pair[0] * vocab_size + pair[1] for pair in merges]
     merges_np = np.array(merges_l, dtype=np.int64)

@@ -15,7 +15,7 @@ for TokenizerClass, name in zip([RegexTokenizer], ["regex"]):
     tokenizer = TokenizerClass()
     vocab_size = 5000
     init_vocab_size = 256
-    tokenizer.train(text[:100000], vocab_size, init_vocab_size)
+    tokenizer.train(text, vocab_size, init_vocab_size)
     print("ready")
     encoded = tokenizer.encode_ordinary(text)
     print("compressed to:", f"{round(100*len(encoded)/len(text.encode('utf-8')), 2)}%")
