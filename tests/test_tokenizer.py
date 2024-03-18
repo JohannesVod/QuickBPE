@@ -9,8 +9,8 @@ from tokenizer import RegexTokenizer, GPT4Tokenizer
 
 # a few strings to test the tokenizers on
 test_strings = [
-    #"", # empty string
-    #"?", # single character
+    "", # empty string
+    "?", # single character
     "hello world!!!? (안녕하세요!) lol123 😉", # fun small string
     "FILE:taylorswift.txt", # FILE: is handled as a special string in unpack()
 ]
@@ -49,15 +49,13 @@ The ancestors of llamas are thought to have originated from the Great Plains of 
 # tests
 
 # test encode/decode identity for a few different strings
-@pytest.mark.parametrize("tokenizer_factory", [GPT4Tokenizer])
+@pytest.mark.parametrize("tokenizer_factory", [RegexTokenizer, GPT4Tokenizer])
 @pytest.mark.parametrize("text", test_strings)
 def test_encode_decode_identity(tokenizer_factory, text):
     text = unpack(text)
     tokenizer = tokenizer_factory()
     ids = tokenizer.encode(text)
     decoded = tokenizer.decode(ids)
-    if text != decoded:
-        c = 0
     assert text == decoded
 
 # test that our tokenizer matches the official GPT-4 tokenizer
@@ -68,8 +66,6 @@ def test_gpt4_tiktoken_equality(text):
     enc = tiktoken.get_encoding("cl100k_base")
     tiktoken_ids = enc.encode(text)
     gpt4_tokenizer_ids = tokenizer.encode(text)
-    if gpt4_tokenizer_ids != tiktoken_ids:
-        c = 0
     assert gpt4_tokenizer_ids == tiktoken_ids
 
 # test the handling of special tokens
@@ -137,6 +133,3 @@ def test_save_load(special_tokens):
 
 def executeTest():
     pytest.main()
-
-if __name__ == "__main__":
-    executeTest()

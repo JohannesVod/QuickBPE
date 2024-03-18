@@ -464,8 +464,8 @@ void printVector(const std::vector<uint16_t>& vec) {
 }
 
 struct tokenStat{
-    int pair_id;
-    int tok_id;
+    int64_t pair_id;
+    uint32_t tok_id;
 };
 
 void printVector(const std::vector<struct tokenStat>& vec) {
@@ -475,15 +475,15 @@ void printVector(const std::vector<struct tokenStat>& vec) {
     std::cout << std::endl;
 }
 
-void _tokenizeChunk(std::vector<uint16_t> &ids, std::unordered_map<int, uint16_t> &pair_to_tok, int vocab_size){
+void _tokenizeChunk(std::vector<uint32_t> &ids, std::unordered_map<int64_t, uint32_t> &pair_to_tok, int vocab_size){
     // tokenizes a chunk in-place
     std::vector<struct tokenStat> stats; // Vector of struct stat
-    stats.reserve(ids.size()); // <- test later for performance
+    stats.reserve(ids.size());
     for (size_t i = 0; i < ids.size()-1; i++)
     {
-        uint16_t t_1 = ids[i];
-        uint16_t t_2 = ids[i+1];
-        int key = t_1 * vocab_size + t_2;
+        uint32_t t_1 = ids[i];
+        uint32_t t_2 = ids[i+1];
+        int64_t key = t_1 * vocab_size + t_2;
         if (pair_to_tok.find(key) != pair_to_tok.end()){
             // Construct a struct stat and push it into the vector
             stats.push_back({key, pair_to_tok[key]});
@@ -493,8 +493,8 @@ void _tokenizeChunk(std::vector<uint16_t> &ids, std::unordered_map<int, uint16_t
     // merge and recalculate stats while merging
     while (stats.size() > 0){
         // find the first pair that has to be swapped:
-        int min_tok_id = -1;
-        int min_pair_id = -1;
+        uint32_t min_tok_id = -1;
+        int64_t min_pair_id = -1;
         for (size_t i = 0; i < stats.size(); i++)
         {
             if (stats[i].tok_id < min_tok_id || min_tok_id == -1){
@@ -513,18 +513,18 @@ void _tokenizeChunk(std::vector<uint16_t> &ids, std::unordered_map<int, uint16_t
                 i--; // last element might also be min_tok_id
             }
         }
-        int tok_1 = (int)(min_pair_id / vocab_size);
-        int tok_2 = min_pair_id % vocab_size;
+        uint32_t tok_1 = (uint32_t)(min_pair_id / vocab_size);
+        uint32_t tok_2 = (uint32_t)(min_pair_id % vocab_size);
         // merge every occurrence:
         int i = 0;
         int curr_append = 0;
-        int prev = -1;
+        uint32_t prev = -1;
         while (i < ids.size()){
             if (ids[i] == tok_1 && i < ids.size() - 1 && ids[i+1] == tok_2){
                 ids[curr_append] = min_tok_id;
                 i += 2;
                 if (prev != -1){
-                    int pair_id = prev*vocab_size + ids[curr_append];
+                    int64_t pair_id =(int64_t)prev*vocab_size + ids[curr_append];
                     if (pair_to_tok.find(pair_id) != pair_to_tok.end()){
                         stats.push_back({pair_id, pair_to_tok[pair_id]});
                     }
@@ -535,7 +535,7 @@ void _tokenizeChunk(std::vector<uint16_t> &ids, std::unordered_map<int, uint16_t
                 i += 1;
             }
             if (prev == min_tok_id && ids[curr_append] != min_tok_id){
-                int pair_id = prev*vocab_size + ids[curr_append];
+                int64_t pair_id = (int64_t)prev*vocab_size + ids[curr_append];
                 if (pair_to_tok.find(pair_id) != pair_to_tok.end()){
                     stats.push_back({pair_id, pair_to_tok[pair_id]});
                 }
@@ -553,7 +553,7 @@ void _tokenizeChunk(std::vector<uint16_t> &ids, std::unordered_map<int, uint16_t
 
 struct tokenizeResult
 {
-    uint16_t *ids;
+    uint32_t *ids;
     int ids_size;
 };
 
@@ -573,29 +573,29 @@ extern "C"{
  * @return A pointer to an array of integers representing the tokenized text.
  *         This array needs to be freed after use.
  */
-    struct tokenizeResult tokenize(uint8_t *ids, int num_ids, int *splits, int len_splits, int *token_pairs, int token_pairs_count, int init_tokens, int num_threads){
+    struct tokenizeResult tokenize(uint8_t *ids, int num_ids, int *splits, int len_splits, int64_t *token_pairs, int token_pairs_count, int init_tokens, int num_threads){
         int vocab_size = token_pairs_count+init_tokens;
         auto start = std::chrono::steady_clock::now(); // Record start time
         // splits denote the places where the string got splitted by regex
-        std::vector<std::vector<uint16_t>> splitted;
+        std::vector<std::vector<uint32_t>> splitted;
         splitted.reserve(len_splits);
         for (size_t i = 0; i < len_splits-1; i++)
         {
             int curr = splits[i];
             int next = splits[i+1];
-            std::vector<uint16_t> chunk;
+            std::vector<uint32_t> chunk;
             chunk.reserve(next-curr);
             for (size_t j = curr; j < next; j++)
             {
-                chunk.emplace_back((uint16_t)ids[j]);
+                chunk.emplace_back((uint32_t)ids[j]);
             }
             splitted.emplace_back(chunk);
         }
         
-        std::unordered_map<int, uint16_t> pair_to_token(token_pairs_count);
+        std::unordered_map<int64_t, uint32_t> pair_to_token(token_pairs_count);
         for (size_t i = 0; i < token_pairs_count; i++)
         {
-            pair_to_token[token_pairs[i]] = (uint16_t)(init_tokens + i);
+            pair_to_token[token_pairs[i]] = (uint32_t)(init_tokens + i);
         }
         
         // Vector to store threads
@@ -628,7 +628,7 @@ extern "C"{
             total_size += splitted[i].size();
         }
         
-        uint16_t *result = (uint16_t*)malloc(sizeof(uint16_t)*total_size);
+        uint32_t *result = (uint32_t*)malloc(sizeof(uint32_t)*total_size);
         int c = 0;
         for (size_t i = 0; i < splitted.size(); i++)
         {
@@ -645,26 +645,28 @@ extern "C"{
     }
 }
 
-// int main() {
-    //     int vocab_size = 10;
-//     std::vector<uint8_t> test = {0, 1, 4, 2,
-//                                 4, 1,      
-//                                 1, 4, 2,      
-//                                 4};
-//     std::vector<int> splits = {0, 4, 6, 9, 10};
-    //     std::vector<int> token_pairs = {
-        //         4*vocab_size + 2, // 5
-//         1*vocab_size + 5, // 6
-//         0*vocab_size + 6, // 7
-//     };
-    //     struct tokenizeResult res = tokenize(&test[0], test.size(), &splits[0], splits.size(), &token_pairs[0], token_pairs.size(), vocab_size, 5, 4);
-    //     printf("Result:");
-    //     for (size_t i = 0; i < res.ids_size; i++)
-    //     {
-//         printf("%d ", res.ids[i]);
-    //     }
-//     return 0;
-// }
+int main() {
+    int vocab_size = 13;
+    int init_tokens = 6;
+    std::vector<uint8_t> test = {0, 1, 2, 3, 3, 4, 5, 5};
+    std::vector<int> splits = {0, 8};
+    std::vector<int64_t> token_pairs = {
+        2*vocab_size + 3, // 6
+        4*vocab_size + 5, // 7
+        0*vocab_size + 1, // 8
+        7*vocab_size + 5, // 9
+        6*vocab_size + 3, // 10
+        8*vocab_size + 10, // 11
+        11*vocab_size + 9, // 12
+    };
+    struct tokenizeResult res = tokenize(&test[0], test.size(), &splits[0], splits.size(), &token_pairs[0], vocab_size-init_tokens, init_tokens, 1);
+    printf("Result:"); // should print 12
+    for (size_t i = 0; i < res.ids_size; i++)
+    {
+        printf("%d ", res.ids[i]);
+    }
+    return 0;
+}
 
 // int main() {
 //     srand(time(NULL)); // Seed for random number generation

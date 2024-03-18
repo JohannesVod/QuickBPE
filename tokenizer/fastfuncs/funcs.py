@@ -16,7 +16,7 @@ class Result(ctypes.Structure):
 
 class TokenizeResult(ctypes.Structure):
     _fields_ = [
-        ('result', ctypes.POINTER(ctypes.c_uint16)),
+        ('result', ctypes.POINTER(ctypes.c_uint32)),
         ('length', ctypes.c_int)
     ]
 
@@ -32,7 +32,7 @@ funcs.train.argtypes = [ctypes.POINTER(ctypes.c_int), ctypes.c_int, ctypes.c_int
 funcs.tokenize.restype = TokenizeResult
 funcs.tokenize.argtypes = [ndpointer(ctypes.c_uint8, flags="C_CONTIGUOUS"), ctypes.c_int, 
                            ndpointer(ctypes.c_int32, flags="C_CONTIGUOUS"), ctypes.c_int, 
-                           ctypes.POINTER(ctypes.c_int), ctypes.c_int,
+                           ctypes.POINTER(ctypes.c_int64), ctypes.c_int,
                            ctypes.c_int, ctypes.c_int]
 
 def trainFast(ids, num_tokens, init_tokens=256):
@@ -60,8 +60,7 @@ def trainFast(ids, num_tokens, init_tokens=256):
 def tokenizeFast(ids, split_indices, merges, init_tokens, threads=1):
     vocab_size = len(merges)+init_tokens
     merges_l = [pair[0] * vocab_size + pair[1] for pair in merges]
-    merges_np = np.array(merges_l, dtype=np.int32)
-
+    merges_np = np.array(merges_l, dtype=np.int64)
     merges_arr = merges_np.ctypes.data_as(ctypes.POINTER(ctypes.c_int64))
 
     # split_indices_arr = split_indices.ctypes.data_as(ctypes.POINTER(ctypes.c_int))
