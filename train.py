@@ -4,7 +4,7 @@ from tokenizer import RegexTokenizer
 
 # open some text and train a vocab of 512 tokens
 text = open("tests/taylorswift.txt", "r", encoding="utf-8").read()
-text = "".join([text for _ in range(500)]) # 92780500 ~ 100 mb
+text = "".join([text for _ in range(50)]) # 92780500 ~ 100 mb
 print(len(text))
 # create a directory for models, so we don't pollute the current directory
 os.makedirs("models", exist_ok=True)
@@ -15,7 +15,7 @@ for TokenizerClass, name in zip([RegexTokenizer], ["regex"]):
     tokenizer = TokenizerClass()
     vocab_size = 5000
     init_vocab_size = 256
-    tokenizer.train(text, vocab_size, init_vocab_size)
+    tokenizer.train(text[:100000], vocab_size, init_vocab_size)
     print("ready")
     encoded = tokenizer.encode_ordinary(text)
     print("compressed to:", f"{round(100*len(encoded)/len(text.encode('utf-8')), 2)}%")
