@@ -74,17 +74,17 @@ int getPrevElement(struct LinkedList *list, int index){
 }
 
 // Function to display the doubly linked list
-void displayList(struct LinkedList list, int raw) {
-    int curr = getNextIndex(&list, -1);
+void displayList(struct LinkedList *list, int raw) {
+    int curr = getNextIndex(list, -1);
     while (curr != -1){
         if (raw){
             curr++;
-            if (curr >= list.capacity){
+            if (curr >= list->capacity){
                 curr = -1;
             }
         }
         else{
-            curr = getNextIndex(&list, curr);
+            curr = getNextIndex(list, curr);
         }
     }
     printf("\n");
@@ -118,7 +118,7 @@ struct Heap {
 };
 
 void PrintHeap(Heap *h){
-    for (size_t i = 0; i < h->curr_max; i++)
+    for (size_t i = 0; i < h->curr_max+1; i++)
     {
         if (h->heap_data.find(i) != h->heap_data.end()){
             printf("pos %d: ", i);
@@ -145,19 +145,21 @@ void PrintHeap(Heap *h){
 
 typedef struct Heap heap;
 // returns the maximum pair as integer:
-struct HeapElement extractMaxPair(heap &h)
+struct HeapElement* extractMaxPair(heap &h)
 {
     while (h.heap_data.find(h.curr_max) == h.heap_data.end() && h.curr_max > 0){
         h.curr_max--;
     }
     if (h.curr_max <= 0) {
-        return {std::unordered_set<int>(), 0}; // Return -1 to indicate an empty heap
+        HeapElement* empty_result = new HeapElement{std::unordered_set<int>(), 0};
+        return empty_result; // Return -1 to indicate an empty heap
     }
-    HeapElement result = *h.heap_data[h.curr_max].back();
+    HeapElement *result = h.heap_data[h.curr_max].back();
     h.heap_data[h.curr_max].pop_back();
     if (h.heap_data[h.curr_max].size() == 0){
         h.heap_data.erase(h.curr_max);
     }
+    h.pair_to_position.erase(result->this_pair);
     return result;
 }
 
@@ -264,9 +266,10 @@ void RemovePosition(heap &h, int index, int tok_1, int tok_2, int disallowed){
         return;
     }
     HeapPosition &pos = h.pair_to_position[pair_index];
-    HeapElement *res = h.heap_data[pos.index][pos.inner_index];
+    HeapElement *res = h.heap_data[pos.index][pos.inner_index]; // seg fault?
     // remove old element:
     std::vector<HeapElement*> &stack = h.heap_data[pos.index];
+    
     stack[pos.inner_index] = stack[stack.size()-1];
     h.pair_to_position[stack[pos.inner_index]->this_pair].inner_index = pos.inner_index;
     // add to new stack:
@@ -278,6 +281,10 @@ void RemovePosition(heap &h, int index, int tok_1, int tok_2, int disallowed){
         }
         h.heap_data[pos.index].push_back(res);
         pos.inner_index = (int)h.heap_data[pos.index].size()-1;
+    }
+    else{
+        h.pair_to_position.erase(res->this_pair);
+        delete res; // free memory
     }
     // delete at old position:
     stack.pop_back();
@@ -369,6 +376,7 @@ struct Token* train(int* ids, int num_ids, int num_tokens, int init_tokens) {
     // build inital heap:
     struct LinkedList list = createLinkedList(ids, num_ids);
     heap h = createHeap(num_tokens, list, init_tokens);
+    PrintHeap(&h);
     // number of merges we still need:
     int total_merges = num_tokens-init_tokens;
 
@@ -377,15 +385,16 @@ struct Token* train(int* ids, int num_ids, int num_tokens, int init_tokens) {
     {
         // displayList(list, 0);
         // get max pair:
-        struct HeapElement best_pair = extractMaxPair(h);
+        struct HeapElement* best_pair = extractMaxPair(h);
 
-        if (best_pair.this_pair == 0){
+        if (best_pair->this_pair == 0){
+            delete best_pair;
             printf("break because not enough pairs:(");
             break;
         }
         
-        int max_pair_1 = (int)(best_pair.this_pair / h.vocab_size);
-        int max_pair_2 = best_pair.this_pair % h.vocab_size;
+        int max_pair_1 = (int)(best_pair->this_pair / h.vocab_size);
+        int max_pair_2 = best_pair->this_pair % h.vocab_size;
         // printf("merging %d, %d\n", max_pair_1, max_pair_2);
         // store new token in the final output:
         int new_token_id = init_tokens + i;
@@ -407,10 +416,14 @@ struct Token* train(int* ids, int num_ids, int num_tokens, int init_tokens) {
         {
             vocab[new_token_id].token_list[i+pair_1_len] = vocab[max_pair_2].token_list[i];
         }
-        auto& pairSet = best_pair.positions;
+        auto& pairSet = best_pair->positions;
         int last_added_index = -1;
-
-        for (auto& pos: pairSet) {
+        // iterate in sorted order instead of random:
+        std::vector<int> sortedPairSet;
+        sortedPairSet.reserve(pairSet.size());
+        sortedPairSet.insert(sortedPairSet.end(), pairSet.begin(), pairSet.end());
+        std::sort(sortedPairSet.begin(), sortedPairSet.end());
+        for (auto& pos: sortedPairSet) {
             if (pos == last_added_index){ // needed for repeating tokens
                 continue;
             }
@@ -424,16 +437,30 @@ struct Token* train(int* ids, int num_ids, int num_tokens, int init_tokens) {
             int w2_ind = getNextIndex(&list, pos);
             int w2 = list.data[w2_ind]; // has to exist, otherwise we made a mistake
             int w2_next = getNextElement(&list, w2_ind);
-            RemovePosition(h, w1_prev_ind, w1_prev, w1, best_pair.this_pair);
-            RemovePosition(h, w2_ind, w2, w2_next, best_pair.this_pair);
+            PrintHeap(&h);
+            RemovePosition(h, w1_prev_ind, w1_prev, w1, best_pair->this_pair);
+            PrintHeap(&h);
+            RemovePosition(h, w2_ind, w2, w2_next, best_pair->this_pair);
+            PrintHeap(&h);
             int next_id = getNextIndex(&list, pos);
             // merge tokens to create new token:
             deleteElement(&list, next_id);
             updateElement(&list, pos, new_token_id);
             // add new pairs:
             AddPosition(h, pos, new_token_id, w2_next);
+            PrintHeap(&h);
             AddPosition(h, w1_prev_ind, w1_prev, new_token_id);
+            PrintHeap(&h);
             last_added_index = next_id;
+        }
+        delete best_pair;
+    }
+    // free remaining elements:
+    for (auto &el: h.heap_data){
+        auto e = el.second;
+        for (HeapElement *vec: e)
+        {
+            delete vec;
         }
     }
     return vocab;
@@ -628,6 +655,40 @@ extern "C"{
     }
 }
 
+
+// int main() {
+//     srand(time(NULL)); // Seed for random number generation
+//     auto start = std::chrono::steady_clock::now(); // Record start time
+
+//     // Generate an array with random numbers of size 10000
+//     int num_elements = 10000000;
+//     int init_tokens = 256;
+//     int* ids = new int[num_elements];
+//     for (int i = 0; i < num_elements; ++i) {
+//         ids[i] = rand() % init_tokens; // Random numbers between 0 and 99
+//     }
+
+//     int num_tokens = 512; // Vocab size
+//     struct Token* vocab = train(ids, num_elements, num_tokens, init_tokens);
+
+//     for (int i = 0; i < num_tokens; i++) {
+//         //std::cout << "(" << vocab[i].first_id << ", " << vocab[i].second_id << ") => " << vocab[i].token_id << ", Token List Length: " << vocab[i].token_list_len << ", Token List: ";
+//         for (int j = 0; j < vocab[i].token_list_len; j++) {
+//            // std::cout << vocab[i].token_list[j] << " ";
+//         }
+//         //std::cout << std::endl;
+//         delete[] vocab[i].token_list;
+//     }
+
+//     delete[] ids;
+//     delete[] vocab;
+
+//     auto end = std::chrono::steady_clock::now();
+//     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+//     std::cout << "Elapsed time inside tokenize function: " << duration.count() << " milliseconds" << std::endl;
+//     return 0;
+// }
+
 // int main() {
 //     // little test:
 //     int vocab_size = 13;
@@ -657,11 +718,11 @@ int main() {
     auto start = std::chrono::steady_clock::now(); // Record start time
 
     // Array with specified numbers
-    int ids[] = {1, 2, 4, 0, 1, 2, 0, 3, 5};
+    int ids[] = {1, 1, 1, 1, 1, 1, 1, 1};
     int num_ids = sizeof(ids) / sizeof(ids[0]); // Calculate number of elements in the array
 
-    int num_tokens = 10; // Vocab size
-    int init_tokens = 6; // Init size
+    int num_tokens = 4; // Vocab size
+    int init_tokens = 2; // Init size
     struct Token* vocab = train(ids, num_ids, num_tokens, init_tokens);
 
     for (int i = 0; i < num_tokens; i++) {
@@ -681,3 +742,4 @@ int main() {
     std::cout << "Elapsed time inside tokenize function: " << duration.count() << " milliseconds" << std::endl;
     return 0;
 }
+
