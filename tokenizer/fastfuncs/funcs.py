@@ -22,7 +22,15 @@ class TokenizeResult(ctypes.Structure):
 
 # Load the DLL
 script_dir = os.path.dirname(os.path.abspath(__file__))
-dll_path = os.path.join(script_dir, "funcs.dll")
+
+if os.name == 'nt':  # Windows
+    lib_extension = ".dll"
+elif os.name == 'posix':  # Linux
+    lib_extension = ".so"
+else:
+    raise OSError("Unsupported operating system")
+
+dll_path = os.path.join(script_dir, f"funcs{lib_extension}")
 funcs = ctypes.CDLL(dll_path)
 
 # Define the input and output types of the function
