@@ -36,20 +36,18 @@ class RegexTokenizer(Tokenizer):
 
     def presplit(self, text):
         # "splits" the text by adding 0 as padding between the tokens
-        text_chunks = re.findall(self.compiled_pattern, text)
+        text_chunks = re.findall(self.compiled_pattern, text) # main bottleneck
         # input text preprocessing
-        ids = [list(ch.encode("utf-8")) for ch in text_chunks]
-        bytes_total = 0
-        for el in ids:
-            bytes_total += len(el)
-        id_list = [0 for _ in range(len(ids) + bytes_total)]
+        ids = np.frombuffer(text.encode('utf-8'), dtype=np.uint8)
+        id_list = np.zeros(len(text_chunks) + len(ids), dtype=np.int32)
         i = 0
-        for ch in ids:
-            for el in ch:
-                #print(i)
-                id_list[i] = el
-                i += 1
-            i += 1
+        j = 0
+        # slow as well:
+        for chunk in text_chunks:
+            chunk_length = len(chunk.encode("utf-8"))
+            id_list[i:i+chunk_length] = ids[j:j+chunk_length]
+            i += chunk_length + 1  # +1 for the padding
+            j += chunk_length
         return id_list
 
     def train(self, text, vocab_size, verbose=False):
@@ -71,6 +69,7 @@ class RegexTokenizer(Tokenizer):
             max_count = stats.get(max_pair)
             if max_count != stats.get(suggested_max):
                 raise RuntimeError(f"At {curr_ind} we have as correct max pair: {max_pair} (with cost {max_count}). But our algorithm gave {suggested_max} with cost real cost {stats.get(suggested_max)}")
+            print(max_count)
             return suggested_max
 
         assert vocab_size >= self.init_tokens
@@ -113,37 +112,6 @@ class RegexTokenizer(Tokenizer):
         text_bytes = b"".join(part_bytes)
         text = text_bytes.decode("utf-8", errors="replace")
         return text
-
-    def _encode_chunk(self, text_bytes):
-        # return the token ids
-        # let's begin. first, convert all bytes to integers in range 0..255
-        ids = list(text_bytes)
-        while len(ids) >= 2:
-            # find the pair with the lowest merge index
-            stats = get_stats(ids)
-            pair = min(stats, key=lambda p: self.merges.get(p, float("inf")))
-            # subtle: if there are no more merges available, the key will
-            # result in an inf for every single pair, and the min will be
-            # just the first pair in the list, arbitrarily
-            # we can detect this terminating case by a membership check
-            if pair not in self.merges:
-                break # nothing else can be merged anymore
-            # otherwise let's merge the best pair (lowest merge index)
-            idx = self.merges[pair]
-            ids = merge(ids, pair, idx)
-        return ids
-
-    def encode_ordinary2(self, text):
-        """Encoding that ignores any special tokens."""
-        # split text into chunks of text by categories defined in regex pattern
-        text_chunks = re.findall(self.compiled_pattern, text)
-        # all chunks of text are encoded separately, then results are joined
-        ids = []
-        for chunk in text_chunks:
-            chunk_bytes = chunk.encode("utf-8") # raw bytes
-            chunk_ids = self._encode_chunk(chunk_bytes)
-            ids.extend(chunk_ids)
-        return ids
 
     def encode_ordinary(self, text, ids=None):
         # encode text. use np because much faster (thanks chatgpt):

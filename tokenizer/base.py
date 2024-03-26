@@ -17,14 +17,8 @@ def get_stats(ids, counts=None):
     Optionally allows to update an existing dictionary of counts
     """
     counts = {} if counts is None else counts
-    last_pair = None
-    last_index = float("-inf")
     for index, pair in enumerate(zip(ids, ids[1:])): # iterate consecutive elements
-        if pair == last_pair and last_index+1 == index:
-            continue
         counts[pair] = counts.get(pair, 0) + 1
-        last_pair = pair
-        last_index = index
     return counts
 
 def merge(ids, pair, idx):

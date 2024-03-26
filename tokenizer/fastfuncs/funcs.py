@@ -27,7 +27,7 @@ funcs = ctypes.CDLL(dll_path)
 
 # Define the input and output types of the function
 funcs.train.restype = ctypes.POINTER(Result)
-funcs.train.argtypes = [ctypes.POINTER(ctypes.c_int), ctypes.c_int, ctypes.c_int, ctypes.c_int]
+funcs.train.argtypes = [ndpointer(ctypes.c_int, flags="C_CONTIGUOUS"), ctypes.c_int, ctypes.c_int, ctypes.c_int]
 
 funcs.tokenize.restype = TokenizeResult
 funcs.tokenize.argtypes = [ndpointer(ctypes.c_uint8, flags="C_CONTIGUOUS"), ctypes.c_int, 
@@ -39,9 +39,10 @@ def trainFast(ids, num_tokens, init_tokens=256):
     """
     trains on ids which are already separated 
     """
-    ids_arr = (ctypes.c_int * len(ids))(*ids)
     # Call the c++ function:
-    results_ptr = funcs.train(ids_arr, len(ids), num_tokens, init_tokens)
+    print("start training...")
+    results_ptr = funcs.train(ids, len(ids), num_tokens, init_tokens)
+    print("end training...")
     # Convert the results to a Python list of tuples:
     results = []
     for i in range(num_tokens):
@@ -76,19 +77,3 @@ def tokenizeFast(ids, split_indices, merges, init_tokens, threads=4):
     ctypes.memmove(tokenized_text_buffer, results_ptr.result, ctypes.sizeof(ctypes.c_uint32) * tokenized_text_size)
     tokenized_text = list(tokenized_text_buffer)
     return tokenized_text
-
-from random import randrange
-
-if __name__ == "__main__":
-    # Example usage
-    init_tokens = 256
-    vocab_size = 5000
-    ids = [randrange(1, init_tokens) for i in range(100000)]
-    # [1, 3, 0, 1, 0, 3, 1, 0, 3, 0]
-    merges, vocab = trainFast(ids, vocab_size)
-    size = 100
-    to_encode = np.random.randint(1, init_tokens, size)
-    to_encode = list(to_encode)
-    res = tokenizeFast(to_encode, [0, len(to_encode)], merges, vocab_size, init_tokens)
-    # print("vocab: ", vocab)
-    # print("merges: ", merges)
