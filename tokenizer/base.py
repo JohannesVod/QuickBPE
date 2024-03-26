@@ -94,7 +94,7 @@ class Tokenizer:
             vocab[idx] = special.encode("utf-8")
         return vocab
 
-    def save(self, file_prefix):
+    def save(self, file_prefix, debug=False):
         """
         Saves two files: file_prefix.vocab and file_prefix.model
         This is inspired (but not equivalent to!) sentencepiece's model saving:
@@ -114,6 +114,8 @@ class Tokenizer:
             # the merges dict
             for idx1, idx2 in self.merges:
                 f.write(f"{idx1} {idx2}\n")
+        if not debug:
+            return
         # write the vocab: for the human to look at
         vocab_file = file_prefix + ".vocab"
         inverted_merges = {idx: pair for pair, idx in self.merges.items()}

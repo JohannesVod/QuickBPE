@@ -119,7 +119,7 @@ def test_save_load(special_tokens):
     # verify that save/load work as expected
     ids = tokenizer.encode(text, "all")
     # save the tokenizer (TODO use a proper temporary directory)
-    tokenizer.save("test_tokenizer_tmp")
+    tokenizer.save("test_tokenizer_tmp", True)
     # re-load the tokenizer
     tokenizer = RegexTokenizer()
     tokenizer.load("test_tokenizer_tmp.model")

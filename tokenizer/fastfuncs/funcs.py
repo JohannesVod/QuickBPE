@@ -16,7 +16,7 @@ class Result(ctypes.Structure):
 
 class TokenizeResult(ctypes.Structure):
     _fields_ = [
-        ('result', ctypes.POINTER(ctypes.c_uint32)),
+        ('result', ctypes.POINTER(ctypes.c_int)),
         ('length', ctypes.c_int)
     ]
 
@@ -38,8 +38,7 @@ funcs.train.restype = ctypes.POINTER(Result)
 funcs.train.argtypes = [ndpointer(ctypes.c_int, flags="C_CONTIGUOUS"), ctypes.c_int, ctypes.c_int, ctypes.c_int]
 
 funcs.tokenize.restype = TokenizeResult
-funcs.tokenize.argtypes = [ndpointer(ctypes.c_uint8, flags="C_CONTIGUOUS"), ctypes.c_int, 
-                           ndpointer(ctypes.c_int32, flags="C_CONTIGUOUS"), ctypes.c_int, 
+funcs.tokenize.argtypes = [ndpointer(ctypes.c_int32, flags="C_CONTIGUOUS"), ctypes.c_int, 
                            ctypes.POINTER(ctypes.c_int64), ctypes.c_int,
                            ctypes.c_int, ctypes.c_int]
 
@@ -66,7 +65,7 @@ def trainFast(ids, num_tokens, init_tokens=256):
         vocab[el[0]] = bytes(el[3])
     return merges, vocab
 
-def tokenizeFast(ids, split_indices, merges, init_tokens, threads=4):
+def tokenizeFast(ids, merges, init_tokens, threads=4):
     vocab_size = len(merges)+init_tokens
     merges_l = [pair[0] * vocab_size + pair[1] for pair in merges]
     merges_np = np.array(merges_l, dtype=np.int64)
@@ -76,12 +75,12 @@ def tokenizeFast(ids, split_indices, merges, init_tokens, threads=4):
     # ids_arr = ids.ctypes.data_as(ctypes.POINTER(ctypes.c_ubyte))
 
     results_ptr = funcs.tokenize(
-        ids, len(ids), split_indices, len(split_indices),
+        ids, len(ids),
         merges_arr, len(merges), init_tokens, threads
     )
 
     tokenized_text_size = results_ptr.length
-    tokenized_text_buffer = (ctypes.c_uint32 * tokenized_text_size)()
-    ctypes.memmove(tokenized_text_buffer, results_ptr.result, ctypes.sizeof(ctypes.c_uint32) * tokenized_text_size)
+    tokenized_text_buffer = (ctypes.c_int * tokenized_text_size)()
+    ctypes.memmove(tokenized_text_buffer, results_ptr.result, ctypes.sizeof(ctypes.c_int) * tokenized_text_size)
     tokenized_text = list(tokenized_text_buffer)
     return tokenized_text

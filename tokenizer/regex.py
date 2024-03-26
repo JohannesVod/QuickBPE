@@ -115,18 +115,8 @@ class RegexTokenizer(Tokenizer):
         # encode text. use np because much faster (thanks chatgpt):
         if ids is None:
             ids = np.frombuffer(text.encode('utf-8'), dtype=np.uint8)
-        # find all occurences in ids by index:
-        text_chunks = re.findall(self.compiled_pattern, text) # slowest operation
-        split_indices = np.zeros(len(text_chunks) + 1, dtype=np.int32)
-        curr_el = 0
-        i = 0
-        for el in text_chunks:
-            split_indices[i] = curr_el
-            curr_el += len(list(el.encode("utf-8")))
-            i += 1
-        split_indices[-1] = len(ids)
-        # call c++ function:
-        result = tokenizeFast(ids, split_indices, self.merges, self.init_tokens)
+            ids = ids.astype(np.int32)
+        result = tokenizeFast(ids, self.merges, self.init_tokens)
         return result
 
     def encode(self, text, allowed_special="none_raise"):
