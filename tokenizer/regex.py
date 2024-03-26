@@ -32,7 +32,6 @@ class RegexTokenizer(Tokenizer):
         self.compiled_pattern = re.compile(self.pattern)
         self.special_tokens = {}
         self.inverse_special_tokens = {}
-        self.init_tokens = 256
 
     def presplit(self, text):
         # "splits" the text by adding 0 as padding between the tokens

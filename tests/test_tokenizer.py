@@ -133,3 +133,6 @@ def test_save_load(special_tokens):
 
 def executeTest():
     pytest.main()
+
+if __name__ == "__main__":
+    executeTest()
