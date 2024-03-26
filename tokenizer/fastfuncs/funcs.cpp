@@ -176,7 +176,6 @@ void deleteEl(heap *h, int position, uint64_t pair_index){
 uint64_t extractMaxPair(heap* h)
 {
     if (h->size == 0) {
-        printf("\nHeap is empty.");
         return -1; // Return NULL to indicate an empty heap
     }
     uint64_t result = h->arr[0].pair_index;
@@ -390,6 +389,9 @@ extern "C"{
  */
 struct Token* train(int* ids, int num_ids, int num_tokens, int init_tokens) {
     // build vocab
+    if (init_tokens <= 0){
+        init_tokens = 1;
+    }
     struct Token* vocab = (struct Token*)malloc(num_tokens * sizeof(struct Token));
     // build initial vocab:
     for (int i = 0; i < num_tokens; i++) {
@@ -420,7 +422,7 @@ struct Token* train(int* ids, int num_ids, int num_tokens, int init_tokens) {
 
         uint64_t best_pair = extractMaxPair(&h);
         if (best_pair == -1){
-            printf("break because not enough pairs:(");
+            vocab[0].token_id = -1; // mark to catch error in python
             break;
         }
         int max_pair_1 = (int)(best_pair / h.vocabSize);

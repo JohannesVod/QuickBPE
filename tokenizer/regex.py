@@ -69,7 +69,6 @@ class RegexTokenizer(Tokenizer):
             max_count = stats.get(max_pair)
             if max_count != stats.get(suggested_max):
                 raise RuntimeError(f"At {curr_ind} we have as correct max pair: {max_pair} (with cost {max_count}). But our algorithm gave {suggested_max} with cost real cost {stats.get(suggested_max)}")
-            print(max_count)
             return suggested_max
 
         assert vocab_size >= self.init_tokens

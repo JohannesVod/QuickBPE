@@ -40,11 +40,11 @@ def trainFast(ids, num_tokens, init_tokens=256):
     trains on ids which are already separated 
     """
     # Call the c++ function:
-    print("start training...")
     results_ptr = funcs.train(ids, len(ids), num_tokens, init_tokens)
-    print("end training...")
     # Convert the results to a Python list of tuples:
     results = []
+    if results_ptr[0].token_id == -1:
+        raise RuntimeError("Too many tokens:( Decrease number of tokens or use more training data")
     for i in range(num_tokens):
         result = results_ptr[i]
         tok_len = result.token_list_len

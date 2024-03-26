@@ -5,7 +5,7 @@ from random import randrange
 
 # open some text and train a vocab of 512 tokens
 textOr = open("tests/taylorswift.txt", "r", encoding="utf-8").read()
-textOr = "".join([textOr for _ in range(60)]) # ~ 100 mb
+textOr = "".join([textOr for _ in range(1)]) # ~ 100 mb
 print(len(textOr))
 # create a directory for models, so we don't pollute the current directory
 os.makedirs("models", exist_ok=True)
@@ -18,7 +18,7 @@ for TokenizerClass, name in zip([RegexTokenizer], ["regex"]):
         text = textOr
         # construct the Tokenizer object and kick off verbose training
         tokenizer = TokenizerClass()
-        vocab_size = 300
+        vocab_size = 51565 # 51562
         init_vocab_size = 256
         merges, vocab = tokenizer.train(text, vocab_size, init_vocab_size)
         tokenizer.checkSolution(text, vocab_size, merges, vocab, init_vocab_size)
