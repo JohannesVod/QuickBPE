@@ -62,7 +62,10 @@ class RegexTokenizerFast(Tokenizer):
         id_list = self.presplit(text, tqdm_bar)
         if tqdm_bar:
             tqdm_bar.update(1)
+        t0 = time.time()
         self.merges, self.vocab =  trainFast(id_list, vocab_size, self.init_tokens)
+        t1 = time.time()
+        print(f"time taken: {t1-t0}")
         if tqdm_bar:
             tqdm_bar.update(1)
         return self.merges, self.vocab

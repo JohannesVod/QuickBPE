@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/static/style.css">
+    <title>Tokenizer App</title>
+</head>
+<body>
+    <div class="container">
+        <h1>Text Tokenizer</h1>
+        <form method="POST">
+            <textarea name="text_input" rows="4" placeholder="Enter your text here..." required>{{ user_input }}</textarea>
+            <button type="submit">Tokenize</button>
+        </form>
+        {% if tokenized_output %}
+            <div class="output">
+                <h2>Tokenized Output</h2>
+                <p>
+                    {% for item in tokenized_output %}
+                        <span class="token-box" style="background-color: {{item.color}};">{{ item.token }}</span>
+                    {% endfor %}
+                </p>
+                {% if compression_ratio %}
+                    <h3>Compression Ratio: {{ compression_ratio|round(2) }}</h3>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html>

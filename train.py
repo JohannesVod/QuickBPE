@@ -15,7 +15,6 @@ os.makedirs("models", exist_ok=True)
 
 t0 = time.time()
 for TokenizerClass, name in zip([BasicTokenizer, RegexTokenizer, RegexTokenizerFast], ["basic", "regex"]):
-
     # construct the Tokenizer object and kick off verbose training
     tokenizer = TokenizerClass()
     tokenizer.train(text, 512, verbose=True)

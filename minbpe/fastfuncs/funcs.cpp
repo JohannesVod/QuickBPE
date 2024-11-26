@@ -446,6 +446,7 @@ struct Token* train(int* ids, int num_ids, int num_tokens, int init_tokens) {
         {
             vocab[new_token_id].token_list[i+pair_1_len] = vocab[max_pair_2].token_list[i];
         }
+        
         auto& pairSet = h.pairSets[best_pair];
         std::vector<int> sortedPairSet;
         int c = pairSet->size();
