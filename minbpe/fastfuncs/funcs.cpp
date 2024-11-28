@@ -511,7 +511,7 @@ void _tokenizeChunk(std::vector<uint32_t> &ids, std::unordered_map<int64_t, uint
     // tokenizes a chunk in-place
     std::vector<struct tokenStat> stats; // Vector of struct stat
     stats.reserve(ids.size());
-    for (size_t i = 0; i < ids.size()-1; i++)
+    for (size_t i=0; i < ids.size()-1; i++)
     {
         uint32_t t_1 = ids[i];
         uint32_t t_2 = ids[i+1];
@@ -712,14 +712,14 @@ int main() {
     auto start = std::chrono::steady_clock::now(); // Record start time
 
     // Generate an array with random numbers of size 10000
-    int num_elements = 100000000;
+    int num_elements = 100000;
     int init_tokens = 256;
     int* ids = new int[num_elements];
     for (int i = 0; i < num_elements; ++i) {
         ids[i] = rand() % init_tokens; // Random numbers between 0 and 99
     }
 
-    int num_tokens = 10000; // Vocab size
+    int num_tokens = 100; // Vocab size
     struct Token* vocab = train(ids, num_elements, num_tokens, init_tokens);
 
     for (int i = 0; i < num_tokens; i++) {
