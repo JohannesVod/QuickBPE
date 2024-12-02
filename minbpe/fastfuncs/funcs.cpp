@@ -394,7 +394,7 @@ struct Token* train(int* ids, int num_ids, int num_tokens, int init_tokens) {
     }
     struct Token* vocab = (struct Token*)malloc(num_tokens * sizeof(struct Token));
     // build initial vocab:
-    for (int i = 0; i < num_tokens; i++) {
+    for (int i = 0; i < num_tokens; i++){
         int a_len = 1;
         vocab[i].token_id = i;
         vocab[i].first_id = i;
@@ -409,17 +409,14 @@ struct Token* train(int* ids, int num_ids, int num_tokens, int init_tokens) {
     // build inital heap:
     struct LinkedList list = createLinkedList(ids, num_ids);
     heap h = createHeap(num_tokens, list, init_tokens);
-
     // number of merges we still need:
     int total_merges = num_tokens-init_tokens;
 
     // main algorithm:
-    for (size_t i = 0; i < total_merges; i++)
-    {
+    for (size_t i = 0; i < total_merges; i++){
         // displayList(list, 0);
         // printHeap(&h);
         // get max pair:
-
         uint64_t best_pair = extractMaxPair(&h);
         if (best_pair == -1){
             vocab[0].token_id = -1; // mark to catch error in python
@@ -438,12 +435,10 @@ struct Token* train(int* ids, int num_ids, int num_tokens, int init_tokens) {
         vocab[new_token_id].token_list_len = new_tokens_len;
         vocab[new_token_id].token_list = (int*)malloc(new_tokens_len * sizeof(int));
         // create new list of tokens by merging the old ones:
-        for (size_t i = 0; i < pair_1_len; i++)
-        {
+        for (size_t i = 0; i < pair_1_len; i++){
             vocab[new_token_id].token_list[i] = vocab[max_pair_1].token_list[i];
         }
-        for (size_t i = 0; i < pair_2_len; i++)
-        {
+        for (size_t i = 0; i < pair_2_len; i++){
             vocab[new_token_id].token_list[i+pair_1_len] = vocab[max_pair_2].token_list[i];
         }
         
@@ -457,7 +452,7 @@ struct Token* train(int* ids, int num_ids, int num_tokens, int init_tokens) {
         h.pairSets.erase(best_pair);
 
         int last_added_index = -1;
-        for (auto& pos: sortedPairSet) {
+        for (auto& pos: sortedPairSet){
             if (pos == last_added_index){ // needed for repeating tokens
                 continue;
             }
@@ -511,8 +506,7 @@ void _tokenizeChunk(std::vector<uint32_t> &ids, std::unordered_map<int64_t, uint
     // tokenizes a chunk in-place
     std::vector<struct tokenStat> stats; // Vector of struct stat
     stats.reserve(ids.size());
-    for (size_t i=0; i < ids.size()-1; i++)
-    {
+    for (size_t i=0; i < ids.size()-1; i++){
         uint32_t t_1 = ids[i];
         uint32_t t_2 = ids[i+1];
         int64_t key = (int64_t)t_1 * vocab_size + t_2;
@@ -527,16 +521,14 @@ void _tokenizeChunk(std::vector<uint32_t> &ids, std::unordered_map<int64_t, uint
         // find the first pair that has to be swapped:
         uint32_t min_tok_id = -1;
         int64_t min_pair_id = -1;
-        for (size_t i = 0; i < stats.size(); i++)
-        {
+        for (size_t i = 0; i < stats.size(); i++){
             if (stats[i].tok_id < min_tok_id || min_tok_id == -1){
                 min_tok_id = stats[i].tok_id;
                 min_pair_id = stats[i].pair_id;
             }
         }
         // delete every occurrence of the min pair:
-        for (size_t i = 0; i < stats.size(); i++)
-        {
+        for (size_t i = 0; i < stats.size(); i++){
             if (stats[i].tok_id == min_tok_id){
                 // delete element:
                 stats[i].tok_id = stats[stats.size()-1].tok_id;
@@ -624,8 +616,7 @@ extern "C"{
         }
         
         std::unordered_map<int64_t, uint32_t> pair_to_token(token_pairs_count);
-        for (size_t i = 0; i < token_pairs_count; i++)
-        {
+        for (size_t i = 0; i < token_pairs_count; i++) {
             pair_to_token[token_pairs[i]] = (uint32_t)(init_tokens + i);
         }
         
@@ -656,17 +647,14 @@ extern "C"{
         }
         
         int total_size = 0;
-        for (size_t i = 0; i < splitted.size(); i++)
-        {
+        for (size_t i = 0; i < splitted.size(); i++){
             total_size += splitted[i].size();
         }
         
         uint32_t *result = (uint32_t*)malloc(sizeof(uint32_t)*total_size);
         int c = 0;
-        for (size_t i = 0; i < splitted.size(); i++)
-        {
-            for (size_t j = 0; j < splitted[i].size(); j++)
-            {
+        for (size_t i = 0; i < splitted.size(); i++){
+            for (size_t j = 0; j < splitted[i].size(); j++){
                 result[c] = splitted[i][j];
                 c++;
             }
