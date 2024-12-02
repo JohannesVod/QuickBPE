@@ -287,9 +287,22 @@ typedef struct {
     int* token_list; // the corresponding tokens
 } Merge;
 
+
+/**
+ * @brief Main algorithm for training tokenization model.
+ *
+ * This function implements the main algorithm for training a tokenization model
+ * based on the provided integer IDs. https://aclanthology.org/2023.findings-acl.38.pdf
+ *
+ * @param ids An array containing the input IDs.
+ * @param n The number of IDs in the 'ids' array.
+ * @param k the number of merge rounds.
+ * @param init_tokens The number of different initial tokens to start with.
+ * @return A pointer to a struct Token representing the trained model.
+ */
 Merge* train(int *ids, int n, int k, int init_tokens) {
-    clock_t begin = clock();
-    Merge* vocab = (struct Merge*)malloc((init_tokens+k) * sizeof(Merge));
+    Merge* vocab = malloc((init_tokens+k) * sizeof(Merge));
+
     // build initial vocab:
     for (int i = 0; i < init_tokens+k; i++) {
         int a_len = 1;
@@ -351,10 +364,7 @@ Merge* train(int *ids, int n, int k, int init_tokens) {
             max_occ = this_occs;
     }
     max_occ++;
-    clock_t end = clock();
-    double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
-    begin = clock();
-    printf("preprocess time: %f\n", time_spent);
+
     // init heap:
     Pair **heap = malloc(sizeof(Pair*)*(max_occ));
     for (int i=0; i<max_occ; i++)
@@ -366,25 +376,37 @@ Merge* train(int *ids, int n, int k, int init_tokens) {
         Pair *this_pair = &init_counts[i];
         addToHeap(heap, this_pair);
     }
-    // printL(&l);
     HashEntry *hashes = malloc(sizeof(HashEntry)*(init_tokens+k+1));
     for (int i=0; i<init_tokens+k+1; i++){
         hashes[i] = (HashEntry) {-1, -1, NULL, NULL};
     }
-    Merge *result = malloc(sizeof(Merge)*k);
     for (int i=0; i<k; i++){
         // extract most frequent pair:
         while (heap_max > 0 && heap[heap_max] == NULL){
             heap_max--;
         }
         if (heap_max <= 0){
-            // printf("Empty!!!:(\n");
             break;
         }
         Pair *max_pair = heap[heap_max];
         int new_letter = init_tokens+i;
-        // printf("(%d, %d) -> {%d}\n", max_pair->a, max_pair->b, new_letter);
-        result[i] = (Merge) {max_pair->a, max_pair->b, new_letter};
+
+        // fill in new token:
+        vocab[new_letter].a = max_pair->a;
+        vocab[new_letter].b = max_pair->b;
+        vocab[new_letter].c = new_letter;
+        int pair_1_len = vocab[max_pair->a].token_list_len;
+        int pair_2_len = vocab[max_pair->b].token_list_len;
+        int new_tokens_len = pair_1_len + pair_2_len;
+        vocab[new_letter].token_list_len = new_tokens_len;
+        vocab[new_letter].token_list = (int*)malloc(new_tokens_len * sizeof(int));
+        for (int i = 0; i < pair_1_len; i++){
+            vocab[new_letter].token_list[i] = vocab[max_pair->a].token_list[i];
+        }
+        for (int i = 0; i < pair_2_len; i++){
+            vocab[new_letter].token_list[i+pair_1_len] = vocab[max_pair->b].token_list[i];
+        }
+
         // delete each occurrence:
         Node *curr = max_pair->first_occurrence;
         // remove from heap
@@ -412,14 +434,9 @@ Merge* train(int *ids, int n, int k, int init_tokens) {
                 Pair *p = getPairFromHash(heap, hashes, new_letter, curr->r->v, new_letter);
                 addOcc(heap, p, curr);
             }
-            // printHeap(heap, max_occ);
             curr = next_occ;
         }
     }
-    end = clock();
-    time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
-    begin = clock();
-    printf("merge time: %f\n", time_spent);
    
     // free pairs created during merging:
     while (heap_max >= 0){
@@ -438,7 +455,7 @@ Merge* train(int *ids, int n, int k, int init_tokens) {
     free(init_counts);
     free(hashes);
     free(nodeMalloc);
-    return result;
+    return vocab;
 }
 
 typedef struct {
@@ -467,6 +484,7 @@ MergedList merge(int *s, int len_s, Merge m){
     res.len = curr_ind_new_s;
     return res;
 }
+
 
 int verifySolution(int *s, int n, int k, int init_tokens, Merge *res){
     int *this_s = malloc(sizeof(int)*n);
@@ -523,7 +541,7 @@ int main() {
     for (int test=0; test<1; test++){
         // printf("test: %d\n", test+1);
         int n = 10000000;
-        int k = 100;
+        int k = 50000;
         int init_tokens = 10;
         int* ids = malloc(sizeof(int) * n);
         if (!ids) {
