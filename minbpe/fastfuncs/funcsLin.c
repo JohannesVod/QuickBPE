@@ -2,10 +2,11 @@
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
+#include <time.h>
 
 typedef struct Node {
     int v;
-    int index;
+    int block; // used to prevent certain types of merges
     struct Node *l;
     struct Node *r;
     struct Node *prev_occ;
@@ -29,10 +30,6 @@ typedef struct Pair {
     struct Pair *next;
     struct Pair *prev;  
 } Pair;
-
-typedef struct {
-    int id;
-} Token;
 
 void printL(LinkedList *L) {
     printf("List: \n");
@@ -93,7 +90,7 @@ void printPair(Pair *p){
     printf("(%d, %d) (occs: %d): ", p->a, p->b, p->num_occurrences);
     Node *curr = p->first_occurrence;
     while (curr != NULL) {
-        printf("%d", curr->index);
+        printf("%d", curr->block);
         if (curr->next_occ != NULL){
             if (curr->next_occ->prev_occ != curr) {
                 if (curr->next_occ->prev_occ == NULL){
@@ -113,7 +110,7 @@ void printPair(Pair *p){
 }
 
 void printNode(Node *node){
-    printf("Node: (ind: %d, val: %d)", node->index, node->v);
+    printf("Node: (ind: %d, val: %d)", node->block, node->v);
 }
 
 void printHeap(Pair **h, int heapsize){
@@ -282,13 +279,36 @@ Pair *getPairFromHash(Pair **heap, HashEntry *hashes, int a, int b, int new_lett
     }
 }
 
-Token* train(int *ids, int n, int k, int init_tokens) {
+typedef struct { 
+    int a; // the id of the token
+    int b; // the first element of the pair
+    int c; // the second element of the pair
+    int token_list_len; // the length of the corresponding tokens
+    int* token_list; // the corresponding tokens
+} Merge;
+
+Merge* train(int *ids, int n, int k, int init_tokens) {
+    clock_t begin = clock();
+    Merge* vocab = (struct Merge*)malloc((init_tokens+k) * sizeof(Merge));
+    // build initial vocab:
+    for (int i = 0; i < init_tokens+k; i++) {
+        int a_len = 1;
+        vocab[i].a = i;
+        vocab[i].b = i;
+        vocab[i].c = i;
+        vocab[i].token_list_len = a_len;
+        vocab[i].token_list = (int*)malloc(a_len * sizeof(int));
+        for (int j = 0; j < a_len; j++) {
+            vocab[i].token_list[j] = i;
+        }
+    }
+
     Node *nodeMalloc = malloc(sizeof(Node) * n);
     LinkedList l;
     l.size = n;
     l.start = &nodeMalloc[0];
     Node *curr = NULL;
-    
+
     // used for the initial counting:
     Pair *init_counts = malloc(sizeof(Pair)*init_tokens*init_tokens);
     for (int i=0; i<init_tokens; i++){
@@ -303,15 +323,21 @@ Token* train(int *ids, int n, int k, int init_tokens) {
         // create new node:
         nodeMalloc[i] = (Node){ids[i], i, curr, NULL, NULL, NULL, NULL};
         Node *this_node = &nodeMalloc[i];
+        if (ids[i] == 0) {
+            this_node->block = -1;
+        }
         if (curr != NULL) {
             // link previous node:
             curr->r = this_node;
             int a = ids[i-1];
             int b = ids[i];
-            int index = a*init_tokens+b;
-            // link previous/next occurrence of this pair:
-            Pair *curr_pair = &init_counts[index];
-            addOcc2Pair(curr_pair, curr);
+            
+            if (this_node->block != -1 && curr->block != -1){
+                int index = a*init_tokens+b;
+                // link previous/next occurrence of this pair:
+                Pair *curr_pair = &init_counts[index];
+                addOcc2Pair(curr_pair, curr);
+            }
         }
         curr = this_node;
     }
@@ -325,7 +351,10 @@ Token* train(int *ids, int n, int k, int init_tokens) {
             max_occ = this_occs;
     }
     max_occ++;
-    
+    clock_t end = clock();
+    double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+    begin = clock();
+    printf("preprocess time: %f\n", time_spent);
     // init heap:
     Pair **heap = malloc(sizeof(Pair*)*(max_occ));
     for (int i=0; i<max_occ; i++)
@@ -337,25 +366,25 @@ Token* train(int *ids, int n, int k, int init_tokens) {
         Pair *this_pair = &init_counts[i];
         addToHeap(heap, this_pair);
     }
-    printL(&l);
+    // printL(&l);
     HashEntry *hashes = malloc(sizeof(HashEntry)*(init_tokens+k+1));
     for (int i=0; i<init_tokens+k+1; i++){
         hashes[i] = (HashEntry) {-1, -1, NULL, NULL};
     }
-
+    Merge *result = malloc(sizeof(Merge)*k);
     for (int i=0; i<k; i++){
         // extract most frequent pair:
         while (heap_max > 0 && heap[heap_max] == NULL){
             heap_max--;
         }
         if (heap_max <= 0){
-            printf("Empty!!!:(\n");
+            // printf("Empty!!!:(\n");
             break;
         }
         Pair *max_pair = heap[heap_max];
         int new_letter = init_tokens+i;
-        printf("(%d, %d) -> {%d}\n", max_pair->a, max_pair->b, new_letter);
-
+        // printf("(%d, %d) -> {%d}\n", max_pair->a, max_pair->b, new_letter);
+        result[i] = (Merge) {max_pair->a, max_pair->b, new_letter};
         // delete each occurrence:
         Node *curr = max_pair->first_occurrence;
         // remove from heap
@@ -375,22 +404,24 @@ Token* train(int *ids, int n, int k, int init_tokens) {
             removeFromList(&l, curr->r);
             curr->v = new_letter;
             // add new occurrences
-            if (curr->l != NULL){
+            if (curr->l != NULL && curr->l->block != -1){
                 Pair *p = getPairFromHash(heap, hashes, curr->l->v, new_letter, new_letter);
                 addOcc(heap, p, curr->l);
             }
-            if (curr->r != NULL){
+            if (curr->r != NULL && curr->r->block != -1){
                 Pair *p = getPairFromHash(heap, hashes, new_letter, curr->r->v, new_letter);
                 addOcc(heap, p, curr);
             }
+            // printHeap(heap, max_occ);
             curr = next_occ;
         }
     }
-    // printL(&l);
-    // printHeap(heap, max_occ);
-    
-    free(init_counts);
-    // free remaining pairs:
+    end = clock();
+    time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+    begin = clock();
+    printf("merge time: %f\n", time_spent);
+   
+    // free pairs created during merging:
     while (heap_max >= 0){
         if (heap[heap_max] != NULL){
             Pair *curr = heap[heap_max];
@@ -404,28 +435,107 @@ Token* train(int *ids, int n, int k, int init_tokens) {
         }
         heap_max--;
     }
+    free(init_counts);
     free(hashes);
     free(nodeMalloc);
-    return NULL;
+    return result;
+}
+
+typedef struct {
+    int *st;
+    int len;
+} MergedList;
+
+MergedList merge(int *s, int len_s, Merge m){
+    MergedList res;
+    res.st = malloc(sizeof(int)*len_s);
+    int curr_ind_new_s = 0;
+    int i = 0;
+    while (i < len_s){
+        if (m.a == s[i] && i < len_s-1 && m.b == s[i + 1]){
+            res.st[curr_ind_new_s] = m.c;
+            curr_ind_new_s++;
+            i += 2;
+        }
+        else{
+            res.st[curr_ind_new_s] = s[i];
+            curr_ind_new_s++;
+            i += 1;
+        }
+    }
+    free(s);
+    res.len = curr_ind_new_s;
+    return res;
+}
+
+int verifySolution(int *s, int n, int k, int init_tokens, Merge *res){
+    int *this_s = malloc(sizeof(int)*n);
+    memcpy(this_s, s, sizeof(int)*n);
+    int alph = init_tokens + k;
+    int *counts = malloc(sizeof(int)*alph*alph);
+    int curr_len = n;
+    int is_ok = 1;
+    for (int curr_k=0; curr_k<k; curr_k++){
+
+        for (int i=0; i<alph*alph; i++){
+            counts[i] = 0;
+        }
+        for (int i=0; i<curr_len-1; i++){
+            int a = this_s[i];
+            int b = this_s[i+1];
+            int index = a*alph+b;
+            if (a != 0 && b != 0)
+                counts[index] += 1;
+        }
+        int max_occ = 0;
+        int best_a; 
+        int best_b; 
+        for (int i=0; i<alph*alph; i++){
+            if (max_occ < counts[i]){
+                best_a = (int)(i/alph);
+                best_b = i%alph;
+                max_occ = counts[i];
+            }
+        }
+        if (max_occ == 0){
+            break;
+        }
+        int this_occ = counts[res[curr_k].a*alph+res[curr_k].b];
+        if (this_occ < max_occ) {
+            is_ok = 0;
+            printf("ERROR. got: ((%d, %d), occs: %d); best: ((%d, %d), occs: %d)\n", res[curr_k].a, res[curr_k].b, this_occ, best_a, best_b, max_occ);
+            break;
+        }
+
+        // printf("ok: %d, %d\n", this_occ, max_occ);
+        MergedList merged = merge(this_s, curr_len, res[curr_k]);
+        curr_len = merged.len;
+        this_s = merged.st;
+    }
+    free(counts);
+    free(this_s);
+    return is_ok;
 }
 
 int main() {
     srand(time(NULL));
     // Generate random array
-    int n = 8;
-    int k = 2;
-    int init_tokens = 3;
-    int* ids = malloc(sizeof(int) * n);
-    if (!ids) {
-        perror("Failed to allocate memory");
-        return 1;
+    for (int test=0; test<1; test++){
+        // printf("test: %d\n", test+1);
+        int n = 10000000;
+        int k = 100;
+        int init_tokens = 10;
+        int* ids = malloc(sizeof(int) * n);
+        if (!ids) {
+            perror("Failed to allocate memory");
+            return 1;
+        }
+        for (int i = 0; i < n; ++i) {
+            ids[i] = rand() % init_tokens;
+        }
+        Merge *res = train(ids, n, k, init_tokens);
+        // int ver = verifySolution(ids, n, k, init_tokens, res);
+        free(ids);
     }
-    for (int i = 0; i < n; ++i) {
-        ids[i] = rand() % init_tokens;
-    }
-    //int test_ids[8] = {1, 1, 1, 1, 1, 1, 1, 1};
-    //memcpy(ids, test_ids, sizeof(test_ids));
-    train(ids, n, k, init_tokens);
-    free(ids);
     return 0;
 }

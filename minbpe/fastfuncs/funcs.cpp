@@ -589,7 +589,6 @@ struct tokenizeResult
     int ids_size;
 };
 
-
 extern "C"{
 /**
  * @brief Tokenizes text given by an array of IDs and uses token pairs to decode the text.
