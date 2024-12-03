@@ -3,7 +3,7 @@ from datasets import load_dataset
 from minbpe import RegexTokenizerFast
 
 output_file = "openwebtext.txt"
-file_size_limit = 10 * 1024 * 1024  # 10MB in bytes
+file_size_limit = 10 * 1024 * 1024  # 10MB
 
 if not os.path.exists(output_file):
     dataset = load_dataset("stas/openwebtext-10k")
