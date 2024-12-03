@@ -30,15 +30,17 @@ elif os.name == 'posix':  # Linux
 else:
     raise OSError("Unsupported operating system")
 
-dll_path = os.path.join(script_dir, f"fastFuncs{lib_extension}")
-funcs = ctypes.CDLL(dll_path)
+encode_path = os.path.join(script_dir, f"encode{lib_extension}")
+bpe_path = os.path.join(script_dir, f"bpe{lib_extension}")
+encode_func = ctypes.CDLL(encode_path)
+bpe_func = ctypes.CDLL(bpe_path)
 
 # Define the input and output types of the function
-funcs.train.restype = ctypes.POINTER(Result)
-funcs.train.argtypes = [ndpointer(ctypes.c_int, flags="C_CONTIGUOUS"), ctypes.c_int, ctypes.c_int, ctypes.c_int]
+bpe_func.train.restype = ctypes.POINTER(Result)
+bpe_func.train.argtypes = [ndpointer(ctypes.c_int, flags="C_CONTIGUOUS"), ctypes.c_int, ctypes.c_int, ctypes.c_int]
 
-funcs.tokenize.restype = TokenizeResult
-funcs.tokenize.argtypes = [ndpointer(ctypes.c_uint8, flags="C_CONTIGUOUS"), ctypes.c_int, 
+encode_func.tokenize.restype = TokenizeResult
+encode_func.tokenize.argtypes = [ndpointer(ctypes.c_uint8, flags="C_CONTIGUOUS"), ctypes.c_int, 
                            ndpointer(ctypes.c_int32, flags="C_CONTIGUOUS"), ctypes.c_int, 
                            ctypes.POINTER(ctypes.c_int64), ctypes.c_int,
                            ctypes.c_int, ctypes.c_int]
@@ -48,7 +50,7 @@ def trainFast(ids, num_tokens, init_tokens=256):
     trains on ids which are already separated 
     """
     # Call the c++ function:
-    results_ptr = funcs.train(ids, len(ids), num_tokens, init_tokens)
+    results_ptr = bpe_func.train(ids, len(ids), num_tokens, init_tokens)
     # Convert the results to a Python list of tuples:
     results = []
     if results_ptr[0].token_id == -1:
@@ -75,7 +77,7 @@ def tokenizeFast(ids, split_indices, merges, init_tokens, threads=4):
     # split_indices_arr = split_indices.ctypes.data_as(ctypes.POINTER(ctypes.c_int))
     # ids_arr = ids.ctypes.data_as(ctypes.POINTER(ctypes.c_ubyte))
 
-    results_ptr = funcs.tokenize(
+    results_ptr = encode_func.tokenize(
         ids, len(ids), split_indices, len(split_indices),
         merges_arr, len(merges), init_tokens, threads
     )
