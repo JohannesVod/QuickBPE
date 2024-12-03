@@ -6,6 +6,7 @@ CFLAGS += -Wno-gnu-compound-literal-initializer -Wno-gnu-zero-variadic-macro-arg
 CXX = g++
 CXXFLAGS = -std=c++11 -O3 -g -Wall -Wextra -Wpedantic
 TARGET = bpe
+TARGET2 = encode
 SRC = bpe.c
 SRC2 = encode.cpp
 

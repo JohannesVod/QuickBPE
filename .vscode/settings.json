@@ -117,6 +117,8 @@
     "variant": "cpp",
     "cstdarg": "cpp",
     "cstring": "cpp",
-    "cinttypes": "cpp"
+    "cinttypes": "cpp",
+    "complex": "cpp",
+    "fstream": "cpp"
   }
 }

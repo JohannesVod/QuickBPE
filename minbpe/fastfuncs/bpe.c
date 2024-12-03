@@ -295,11 +295,12 @@ typedef struct {
  *
  * @param ids An array containing the input IDs.
  * @param n The number of IDs in the 'ids' array.
- * @param k the number of merge rounds.
+ * @param num_tokens the total number of tokens (k + init_tokens).
  * @param init_tokens The number of different initial tokens to start with.
  * @return A pointer to a struct Token representing the trained model.
  */
-Merge* train(int *ids, int n, int k, int init_tokens) {
+Merge* train(int *ids, int n, int num_tokens, int init_tokens) {
+    int k = num_tokens - init_tokens;
     Merge* vocab = malloc((init_tokens+k) * sizeof(Merge));
 
     // build initial vocab:
@@ -314,7 +315,6 @@ Merge* train(int *ids, int n, int k, int init_tokens) {
             vocab[i].token_list[j] = i;
         }
     }
-
     Node *nodeMalloc = malloc(sizeof(Node) * n);
     LinkedList l;
     l.size = n;
@@ -398,7 +398,7 @@ Merge* train(int *ids, int n, int k, int init_tokens) {
         int pair_2_len = vocab[max_pair->b].token_list_len;
         int new_tokens_len = pair_1_len + pair_2_len;
         vocab[new_letter].token_list_len = new_tokens_len;
-        vocab[new_letter].token_list = (int*)malloc(new_tokens_len * sizeof(int));
+        vocab[new_letter].token_list = malloc(new_tokens_len * sizeof(int));
         for (int i = 0; i < pair_1_len; i++){
             vocab[new_letter].token_list[i] = vocab[max_pair->a].token_list[i];
         }

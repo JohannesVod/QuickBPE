@@ -11,6 +11,7 @@
 #include <iostream>
 #include <thread>
 
+
 void printVector(const std::vector<uint16_t>& vec) {
     for (int value : vec) {
         std::cout << value << " ";
@@ -30,55 +31,18 @@ void printVector(const std::vector<struct tokenStat>& vec) {
     std::cout << std::endl;
 }
 
-// Hashmap that uses linear probing:
-typedef struct {
-    tokenStat *toks;
-    int num_els;
-    int len;
-} Hashmap;
-
-int getHash(Hashmap *h, size_t pair_id){
-    return pair_id%h->len;
-}
-
-int add(Hashmap *h, tokenStat stat){
-    h->num_els++;
-    if (h->num_els >= h->len){
-        return -1;
-    }
-    int hash_val = getHash(h, stat.pair_id);
-    while (h->toks[hash_val].pair_id != -1){
-        hash_val++;
-        hash_val = hash_val%h->len;
-    }
-    h->toks[hash_val] = stat;
-    return 0;
-}
-
-uint32_t find(Hashmap *h, size_t pair_id){
-    int hash_val = getHash(h, pair_id);
-    while (h->toks[hash_val].pair_id != pair_id){
-        if (h->toks[hash_val].pair_id == -1){
-            return NULL;
-        }
-        hash_val++;
-        hash_val = hash_val%h->len;
-    }
-    return h->toks[hash_val].tok_id;
-}
-
-void _tokenizeChunk(std::vector<uint32_t> &ids, Hashmap *pair_to_tok, int vocab_size){
+void _tokenizeChunk(std::vector<uint32_t> &ids, std::unordered_map<int64_t, uint32_t> &pair_to_tok, int vocab_size){
     // tokenizes a chunk in-place
     std::vector<struct tokenStat> stats; // Vector of struct stat
     stats.reserve(ids.size());
-    for (size_t i=0; i < ids.size()-1; i++){
+    for (size_t i=0; i < ids.size()-1; i++)
+    {
         uint32_t t_1 = ids[i];
         uint32_t t_2 = ids[i+1];
         int64_t key = (int64_t)t_1 * vocab_size + t_2;
-        uint32_t key_searched = find(pair_to_tok, key);
-        if (key_searched != NULL){
+        if (pair_to_tok.find(key) != pair_to_tok.end()){
             // Construct a struct stat and push it into the vector
-            stats.push_back({key, key_searched});
+            stats.push_back({key, pair_to_tok[key]});
         }
     }
 
@@ -87,14 +51,16 @@ void _tokenizeChunk(std::vector<uint32_t> &ids, Hashmap *pair_to_tok, int vocab_
         // find the first pair that has to be swapped:
         uint32_t min_tok_id = -1;
         int64_t min_pair_id = -1;
-        for (size_t i = 0; i < stats.size(); i++){
+        for (size_t i = 0; i < stats.size(); i++)
+        {
             if (stats[i].tok_id < min_tok_id || min_tok_id == -1){
                 min_tok_id = stats[i].tok_id;
                 min_pair_id = stats[i].pair_id;
             }
         }
         // delete every occurrence of the min pair:
-        for (size_t i = 0; i < stats.size(); i++){
+        for (size_t i = 0; i < stats.size(); i++)
+        {
             if (stats[i].tok_id == min_tok_id){
                 // delete element:
                 stats[i].tok_id = stats[stats.size()-1].tok_id;
@@ -115,9 +81,8 @@ void _tokenizeChunk(std::vector<uint32_t> &ids, Hashmap *pair_to_tok, int vocab_
                 i += 2;
                 if (prev != -1){
                     int64_t pair_id =(int64_t)prev*vocab_size + ids[curr_append];
-                    uint32_t found_el = find(pair_to_tok, pair_id);
-                    if (found_el != NULL){
-                        stats.push_back({pair_id, found_el});
+                    if (pair_to_tok.find(pair_id) != pair_to_tok.end()){
+                        stats.push_back({pair_id, pair_to_tok[pair_id]});
                     }
                 }
             }
@@ -127,9 +92,8 @@ void _tokenizeChunk(std::vector<uint32_t> &ids, Hashmap *pair_to_tok, int vocab_
             }
             if (prev == min_tok_id && ids[curr_append] != min_tok_id){
                 int64_t pair_id = (int64_t)prev*vocab_size + ids[curr_append];
-                uint32_t found_el = find(pair_to_tok, pair_id);
-                if (found_el != NULL){
-                    stats.push_back({pair_id, found_el});
+                if (pair_to_tok.find(pair_id) != pair_to_tok.end()){
+                    stats.push_back({pair_id, pair_to_tok[pair_id]});
                 }
             }
             prev = ids[curr_append];
@@ -148,6 +112,7 @@ struct tokenizeResult
     uint32_t *ids;
     int ids_size;
 };
+
 
 extern "C"{
 /**
@@ -183,11 +148,10 @@ extern "C"{
             splitted.emplace_back(chunk);
         }
         
-        Hashmap pair_to_token = (Hashmap) {NULL, 0, 0};
-        pair_to_token.toks = (tokenStat*)malloc(sizeof(tokenStat) * num_ids);
-
-        for (size_t i = 0; i < token_pairs_count; i++) {
-            add(&pair_to_token, (tokenStat) {token_pairs[i], init_tokens + i});
+        std::unordered_map<int64_t, uint32_t> pair_to_token(token_pairs_count);
+        for (size_t i = 0; i < token_pairs_count; i++)
+        {
+            pair_to_token[token_pairs[i]] = (uint32_t)(init_tokens + i);
         }
         
         // Vector to store threads
@@ -196,7 +160,7 @@ extern "C"{
         // Function to be executed by each thread
         auto tokenizeChunksThread = [&](size_t start, size_t end) {
             for (size_t i = start; i < end; i++) {
-                _tokenizeChunk(splitted[i], &pair_to_token, vocab_size);
+                _tokenizeChunk(splitted[i], pair_to_token, vocab_size);
             }
         };
 
@@ -209,7 +173,7 @@ extern "C"{
         }
         // Main thread handles remaining chunks
         for (size_t i = (num_threads - 1) * chunkSize; i < splitted.size(); i++) {
-            _tokenizeChunk(splitted[i], &pair_to_token, vocab_size);
+            _tokenizeChunk(splitted[i], pair_to_token, vocab_size);
         }
         // Join threads
         for (auto& thread : threads) {
@@ -217,14 +181,17 @@ extern "C"{
         }
         
         int total_size = 0;
-        for (size_t i = 0; i < splitted.size(); i++){
+        for (size_t i = 0; i < splitted.size(); i++)
+        {
             total_size += splitted[i].size();
         }
         
         uint32_t *result = (uint32_t*)malloc(sizeof(uint32_t)*total_size);
         int c = 0;
-        for (size_t i = 0; i < splitted.size(); i++){
-            for (size_t j = 0; j < splitted[i].size(); j++){
+        for (size_t i = 0; i < splitted.size(); i++)
+        {
+            for (size_t j = 0; j < splitted[i].size(); j++)
+            {
                 result[c] = splitted[i][j];
                 c++;
             }

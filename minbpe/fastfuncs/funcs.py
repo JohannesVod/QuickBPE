@@ -7,9 +7,9 @@ from numpy.ctypeslib import ndpointer
 # Define the structure for the result tuple
 class Result(ctypes.Structure):
     _fields_ = [
-        ('token_id', ctypes.c_int),
         ('first_id', ctypes.c_int),
         ('second_id', ctypes.c_int),
+        ('token_id', ctypes.c_int),
         ('token_list_len', ctypes.c_int),
         ('token_list', ctypes.POINTER(ctypes.c_int))
     ]
