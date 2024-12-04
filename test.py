@@ -1,6 +1,6 @@
 import os
 from datasets import load_dataset
-from minbpe import RegexTokenizerFast
+from QuickBPE import RegexTokenizerFast
 
 output_file = "openwebtext.txt"
 dataset = load_dataset("stas/openwebtext-10k")

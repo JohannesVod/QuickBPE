@@ -1,0 +1,1 @@
+from QuickBPE.regexFast import RegexTokenizerFast

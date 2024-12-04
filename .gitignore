@@ -4,4 +4,4 @@ models/**/*
 *.pytest_cache
 *.model
 *.vocab
-minbpe/fastfuncs/myenv
+myenv

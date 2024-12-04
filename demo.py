@@ -1,4 +1,4 @@
-from minbpe import RegexTokenizerFast
+from QuickBPE import RegexTokenizerFast
 
 tokenizer = RegexTokenizerFast()
 tokenizer.load("webtokenizer.model")
