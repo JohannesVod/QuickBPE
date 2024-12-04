@@ -9,11 +9,9 @@ But:
 - Does not handle any special tokens.
 """
 
-from base import Tokenizer, get_stats, merge
-
+from .base import Tokenizer, get_stats, merge
 
 class BasicTokenizer(Tokenizer):
-
     def __init__(self):
         super().__init__()
 

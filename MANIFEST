@@ -4,6 +4,4 @@ setup.py
 QuickBPE\__init__.py
 QuickBPE\base.py
 QuickBPE\basic.py
-QuickBPE\gpt4.py
-QuickBPE\regex.py
 QuickBPE\regexFast.py
