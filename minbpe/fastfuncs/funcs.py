@@ -25,8 +25,11 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 
 if os.name == 'nt':  # Windows
     lib_extension = ".dll"
-elif os.name == 'posix':  # Linux
-    lib_extension = ".so"
+elif os.name == 'posix':  # Unix-based (Linux and macOS)
+    if os.uname().sysname == "Darwin":  # macOS
+        lib_extension = ".dylib"
+    else:  # Linux
+        lib_extension = ".so"
 else:
     raise OSError("Unsupported operating system")
 
