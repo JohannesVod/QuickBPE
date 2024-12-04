@@ -9,7 +9,7 @@ But:
 - Does not handle any special tokens.
 """
 
-from .base import Tokenizer, get_stats, merge
+from QuickBPE.base import Tokenizer, get_stats, merge
 
 class BasicTokenizer(Tokenizer):
     def __init__(self):

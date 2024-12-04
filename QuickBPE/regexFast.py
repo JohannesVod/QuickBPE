@@ -4,8 +4,8 @@ the naive algorithm for tokenization (with regex splitting).
 """
 
 import regex as re
-from .fastfuncs.funcs import trainFast, tokenizeFast
-from .base import Tokenizer, get_stats, merge
+from QuickBPE.fastfuncs.funcs import trainFast, tokenizeFast
+from QuickBPE.base import Tokenizer, get_stats, merge
 import numpy as np
 import time
 
