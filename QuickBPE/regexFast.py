@@ -4,10 +4,10 @@ the naive algorithm for tokenization (with regex splitting).
 """
 
 import regex as re
-from .fastfuncs.funcs import trainFast, tokenizeFast
-from .base import Tokenizer, get_stats, merge
+from fastfuncs.funcs import trainFast, tokenizeFast
+from base import Tokenizer, get_stats, merge
 import numpy as np
-import time 
+import time
 
 # the main GPT text split patterns, see
 # https://github.com/openai/tiktoken/blob/main/tiktoken_ext/openai_public.py
