@@ -31,127 +31,6 @@ typedef struct Pair {
     struct Pair *prev;  
 } Pair;
 
-void printL(LinkedList *L) {
-    printf("List: \n");
-    Node *curr = L->start;
-    int i=0;
-    while (curr != NULL) {
-        printf("%d", curr->v);
-        // if (curr->next_occ != NULL){
-        //     printf("(next occ: %d)", curr->next_occ->index);
-        // }
-        // else{
-        //     printf("*");
-        // }
-        // if (curr->prev_occ != NULL){
-        //     printf("(prev occ: %d)", curr->prev_occ->index);
-        // }
-        if (curr->pair != NULL){
-            //printf("(pair: (%d, %d))", curr->pair->a, curr->pair->b);
-        }
-        else{
-            printf("*");
-        }
-        if (curr->next_occ != NULL){
-            if (curr->next_occ->prev_occ != curr){
-                if (curr->next_occ->prev_occ == NULL){
-                    printf("|!!(NULL)<-!!|!!->(%d)!!|", curr->next_occ->v);
-                }
-                else{
-                    printf("|!!(%d)<-!!|!!->(%d)!!|", curr->next_occ->prev_occ->v, curr->next_occ->v);
-                }
-            }
-        }
-        if (curr->prev_occ != NULL){
-            if (curr->prev_occ->next_occ != curr){
-                if (curr->prev_occ->next_occ == NULL){
-                    printf("|!?!(NULL)<-!?!|!?!->(%d)!?!|", curr->prev_occ->v);
-                }
-                else{
-                    printf("|!?!(%d)<-!!|!!->(%d)!?!|", curr->prev_occ->next_occ->v, curr->prev_occ->v);
-                }
-            }
-        }
-        if (curr->r != NULL){
-            if (curr->r->l != curr){
-                printf("-!!!-");
-            }
-            else{
-                printf("=");
-            }
-        }
-        curr = curr->r;
-        i++;
-    }
-    printf("\n");
-}
-
-void printPair(Pair *p){
-    printf("(%d, %d) (occs: %d): ", p->a, p->b, p->num_occurrences);
-    Node *curr = p->first_occurrence;
-    while (curr != NULL) {
-        printf("%d", curr->block);
-        if (curr->next_occ != NULL){
-            if (curr->next_occ->prev_occ != curr) {
-                if (curr->next_occ->prev_occ == NULL){
-                    printf("!!(NULL)<-!!");
-                }
-                else{
-                    printf("!!(%d)<-!!", curr->next_occ->prev_occ->v);
-                }
-            }
-            else {
-                printf("=");
-            }
-        }
-        curr = curr->next_occ;
-    }
-    printf("\n");
-}
-
-void printNode(Node *node){
-    printf("Node: (ind: %d, val: %d)", node->block, node->v);
-}
-
-void printHeap(Pair **h, int heapsize){
-    printf("HEAP:\n");
-    for (int i=0; i<heapsize; i++){
-        if (h[i] != NULL){
-            Pair *curr = h[i];
-            printf("size: %d: ", i);
-            while (curr != NULL){
-                printf("|pair: (%d, %d)|", curr->a, curr->b);
-                if (curr->next != NULL){
-                    if (curr->next->prev != curr){
-                        if (curr->next->prev == NULL){
-                            printf("!!((NULL)<-)!!");
-                        } else{
-                            printf("!!((%d, %d)<-)!!", curr->next->prev->a, curr->next->prev->b);
-                        }
-                    }
-                    else{
-                        printf("=");
-                    }
-                }
-                curr = curr->next;
-            }
-            printf("\n");
-        }
-    }
-    // print every pair:
-    printf("Pairs: \n");
-    for (int i=0; i<heapsize; i++){
-        if (h[i] != NULL){
-            Pair *curr = h[i];
-            while (curr != NULL){
-                printPair(curr);
-                curr = curr->next;
-            }
-        }
-    }
-    printf("\n");
-}
-
 void removeFromList(LinkedList *l, Node *node){
     if (node->l != NULL){
         node->l->r = node->r;
@@ -385,6 +264,7 @@ Merge* train(int *ids, int n, int num_tokens, int init_tokens) {
             heap_max--;
         }
         if (heap_max <= 0){
+            vocab[0].c = -1;
             break;
         }
         Pair *max_pair = heap[heap_max];
