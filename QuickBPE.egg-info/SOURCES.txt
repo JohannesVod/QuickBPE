@@ -13,6 +13,9 @@ QuickBPE.egg-info/SOURCES.txt
 QuickBPE.egg-info/dependency_links.txt
 QuickBPE.egg-info/requires.txt
 QuickBPE.egg-info/top_level.txt
+QuickBPE/__pycache__/__init__.cpython-310.pyc
+QuickBPE/__pycache__/base.cpython-310.pyc
+QuickBPE/__pycache__/regexFast.cpython-310.pyc
 QuickBPE/fastfuncs/Makefile
 QuickBPE/fastfuncs/__init__.py
 QuickBPE/fastfuncs/bpe.c
@@ -25,3 +28,5 @@ QuickBPE/fastfuncs/encode.dll
 QuickBPE/fastfuncs/encode.dylib
 QuickBPE/fastfuncs/encode.so
 QuickBPE/fastfuncs/funcs.py
+QuickBPE/fastfuncs/__pycache__/__init__.cpython-310.pyc
+QuickBPE/fastfuncs/__pycache__/funcs.cpython-310.pyc

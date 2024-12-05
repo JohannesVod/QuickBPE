@@ -1,14 +1,19 @@
 from setuptools import setup, find_packages
 
+with open("README.md", "r", encoding="utf-8") as fh:
+    README = fh.read()
+
 setup(
     name='QuickBPE',         
-    version='1.8.6',           
+    version='2.1',           
     license='MIT',           
     description='A fast BPE implementation in C',
+    long_description_content_type="text/markdown",
+    long_description=README,
     author='Johannes Voderholzer',
     author_email='invenis2@gmail.com',
     url='https://github.com/JohannesVod/QuickBPE',
-    download_url='https://github.com/JohannesVod/QuickBPE/archive/refs/tags/v1.8.1.tar.gz',
+    download_url='https://github.com/JohannesVod/QuickBPE/archive/refs/tags/v2.0.tar.gz',
     keywords=['BPE', 'LLM', 'tokenization'], 
     install_requires=[
         'numpy',
