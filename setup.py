@@ -1,32 +1,30 @@
-from distutils.core import setup
+from setuptools import setup, find_packages
+
 setup(
-  name = 'QuickBPE',         # How you named your package folder (MyLib)
-  packages = ['QuickBPE'],   # Chose the same as "name"
-  version = '1.7',      # Start with a small number and increase it with every change you make
-  license='MIT',        # Chose a license from here: https://help.github.com/articles/licensing-a-repository
-  description = 'A fast bpe implementation in C',   # Give a short description about your library
-  author = 'Johannes Voderholzer',                   # Type in your name
-  author_email = 'invenis2@gmail.com',      # Type in your E-Mail
-  url = 'https://github.com/JohannesVod/QuickBPE',   # Provide either the link to your github or to your website
-  download_url = 'https://github.com/JohannesVod/QuickBPE/archive/refs/tags/v1.7.tar.gz',    # I explain this later on
-  keywords = ['BPE', 'LLM', 'tokenization'],   # Keywords that define your package best
-  install_requires=[            # I get to this in a second
+    name='QuickBPE',         
+    version='1.8.6',           
+    license='MIT',           
+    description='A fast BPE implementation in C',
+    author='Johannes Voderholzer',
+    author_email='invenis2@gmail.com',
+    url='https://github.com/JohannesVod/QuickBPE',
+    download_url='https://github.com/JohannesVod/QuickBPE/archive/refs/tags/v1.8.1.tar.gz',
+    keywords=['BPE', 'LLM', 'tokenization'], 
+    install_requires=[
         'numpy',
         'tiktoken',
-        'regex'
-      ],
-  package_data={
-      # Include .dll or .so files
-      "QuickBPE.fastfuncs": ["*.dll", "*.so"],
-  },
-  classifiers=[
-    'Development Status :: 3 - Alpha',      # Chose either "3 - Alpha", "4 - Beta" or "5 - Production/Stable" as the current state of your package
-    'Intended Audience :: Developers',      # Define that your audience are developers
-    'Topic :: Software Development :: Build Tools',
-    'License :: OSI Approved :: MIT License',   # Again, pick a license
-    'Programming Language :: Python :: 3',      #Specify which pyhton versions that you want to support
-    'Programming Language :: Python :: 3.8',
-    'Programming Language :: Python :: 3.11',
-    'Programming Language :: Python :: 3.12',
-  ],
+        'regex',
+    ],
+    packages=find_packages(),  # Automatically include subpackages
+    include_package_data=True, # Include non-Python files specified in MANIFEST.in
+    classifiers=[
+        'Development Status :: 3 - Alpha',
+        'Intended Audience :: Developers',
+        'Topic :: Software Development :: Build Tools',
+        'License :: OSI Approved :: MIT License',
+        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.11',
+        'Programming Language :: Python :: 3.12',
+    ],
 )

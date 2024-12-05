@@ -1,0 +1,23 @@
+Metadata-Version: 2.1
+Name: QuickBPE
+Version: 1.8.6
+Summary: A fast BPE implementation in C
+Home-page: https://github.com/JohannesVod/QuickBPE
+Author: Johannes Voderholzer
+Author-email: invenis2@gmail.com
+License: MIT
+Download-URL: https://github.com/JohannesVod/QuickBPE/archive/refs/tags/v1.8.1.tar.gz
+Keywords: BPE,LLM,tokenization
+Platform: UNKNOWN
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Developers
+Classifier: Topic :: Software Development :: Build Tools
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+License-File: LICENSE.txt
+
+UNKNOWN
+
